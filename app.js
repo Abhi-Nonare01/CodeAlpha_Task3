@@ -321,22 +321,96 @@ document.addEventListener('DOMContentLoaded', () => {
       if (pre.querySelector('.code-header')) return;
       const code = pre.querySelector('code');
       const lang = (code.className.match(/language-(\w+)/) || [, 'code'])[1];
+      const rawCode = code.innerText;
 
       const header = document.createElement('div');
       header.className = 'code-header';
+      
+      const canRun = (lang === 'html' || lang === 'xml' || lang === 'javascript' || lang === 'js' || rawCode.includes('<!DOCTYPE html>') || rawCode.includes('<html>'));
+
       header.innerHTML = `
-        <span>${lang}</span>
-        <button class="copy-code-btn"><i data-lucide="copy" style="width:12px;height:12px;"></i> Copy</button>
+        <span>${lang.toUpperCase()}</span>
+        <div class="code-header-actions">
+          ${canRun ? '<button class="code-action-btn btn-run-code"><i data-lucide="play" style="width:12px;height:12px;"></i> Run Live</button>' : ''}
+          <button class="code-action-btn btn-download-code"><i data-lucide="download" style="width:12px;height:12px;"></i> Download</button>
+          <button class="code-action-btn btn-copy-code"><i data-lucide="copy" style="width:12px;height:12px;"></i> Copy</button>
+        </div>
       `;
 
-      header.querySelector('.copy-code-btn').addEventListener('click', () => {
-        navigator.clipboard.writeText(code.innerText);
-        showToast('Code copied!', 'check');
+      // Copy Button
+      header.querySelector('.btn-copy-code').addEventListener('click', () => {
+        navigator.clipboard.writeText(rawCode);
+        showToast('Code copied to clipboard!', 'check');
       });
+
+      // Download Button
+      header.querySelector('.btn-download-code').addEventListener('click', () => {
+        const extMap = { python: 'py', java: 'java', javascript: 'js', js: 'js', html: 'html', css: 'css', sql: 'sql', cpp: 'cpp', c: 'c', json: 'json', markdown: 'md' };
+        const ext = extMap[lang.toLowerCase()] || 'txt';
+        const blob = new Blob([rawCode], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nexus_code_${Date.now()}.${ext}`;
+        a.click();
+        showToast(`Saved as .${ext} file!`, 'download');
+      });
+
+      // Run Live Preview Button
+      if (canRun) {
+        header.querySelector('.btn-run-code').addEventListener('click', () => {
+          openLivePreview(rawCode);
+        });
+      }
 
       pre.insertBefore(header, code);
     });
   }
+
+  function openLivePreview(codeContent) {
+    const modal = document.getElementById('preview-modal');
+    const iframe = document.getElementById('preview-iframe');
+    const btnClose = document.getElementById('btn-close-preview');
+
+    if (!modal || !iframe) return;
+
+    modal.classList.add('active');
+    
+    // Inject full code into iframe
+    const blob = new Blob([codeContent], { type: 'text/html' });
+    iframe.src = URL.createObjectURL(blob);
+
+    btnClose.onclick = () => {
+      modal.classList.remove('active');
+      iframe.src = 'about:blank';
+    };
+
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+        iframe.src = 'about:blank';
+      }
+    };
+  }
+
+  // Magic Quick Action Chips
+  document.querySelectorAll('.magic-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const action = chip.dataset.action;
+      const currentVal = chatTextarea.value.trim();
+      if (action === 'code') {
+        chatTextarea.value = currentVal ? `Write full, complete, production-ready code for: ${currentVal}` : 'Write a full, complete, production-ready website for ';
+      } else if (action === 'explain') {
+        chatTextarea.value = currentVal ? `Explain in simple terms step-by-step with examples: ${currentVal}` : 'Explain in simple terms: ';
+      } else if (action === 'debug') {
+        chatTextarea.value = currentVal ? `Debug, optimize, and fix this code: ${currentVal}` : 'Debug and optimize this code: \n';
+      } else if (action === 'hindi') {
+        chatTextarea.value = currentVal ? `${currentVal} in Hindi` : 'Hindi me samjhao: ';
+      }
+      chatTextarea.focus();
+      btnSend.disabled = chatTextarea.value.trim().length === 0;
+    });
+  });
 
   function scrollCanvasToBottom() {
     chatCanvas.scrollTop = chatCanvas.scrollHeight;

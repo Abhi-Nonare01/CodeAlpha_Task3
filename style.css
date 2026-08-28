@@ -566,19 +566,71 @@ body {
   font-family: var(--font-mono);
 }
 
-.copy-code-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-sub);
+.code-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.code-action-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 0.72rem;
+  transition: all var(--transition-smooth);
 }
 
-.copy-code-btn:hover {
+.code-action-btn:hover {
+  background: var(--bg-card-hover);
   color: var(--text-main);
+  border-color: var(--border-focus);
+}
+
+.code-action-btn.btn-run-code {
+  background: rgba(66, 133, 244, 0.18);
+  color: #8ab4f8;
+  border-color: rgba(66, 133, 244, 0.35);
+}
+
+.code-action-btn.btn-run-code:hover {
+  background: var(--accent-primary);
+  color: white;
+}
+
+/* Magic Action Chips */
+.magic-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.magic-chip {
+  padding: 4px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-smooth);
+}
+
+.magic-chip:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+  border-color: var(--border-focus);
+  transform: translateY(-1px);
 }
 
 .msg-content pre code {
