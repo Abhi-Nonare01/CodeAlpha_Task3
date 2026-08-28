@@ -1,0 +1,506 @@
+{
+  "intents": [
+    {
+      "tag": "greeting",
+      "category": "General",
+      "description": "Greeting the bot",
+      "patterns": [
+        "Hi",
+        "Hello",
+        "Hey there",
+        "Greetings",
+        "Good morning",
+        "Good afternoon",
+        "Good evening",
+        "Hi bot",
+        "Namaste",
+        "Hello ji",
+        "Kaise ho",
+        "Kaise ho aap",
+        "नमस्ते",
+        "प्रणाम",
+        "क्या हाल है",
+        "Kya haal hai"
+      ],
+      "responses": [
+        "Hello! I am your AI Chatbot assistant. How can I help you today?",
+        "Hi there! Great to chat with you. What would you like to explore today?",
+        "Greetings! How may I assist you today? Feel free to ask me anything!"
+      ],
+      "suggestions": [
+        "What can you do?",
+        "Tell me about CodeAlfa",
+        "What is NLP?",
+        "Tell me a joke"
+      ]
+    },
+    {
+      "tag": "goodbye",
+      "category": "General",
+      "description": "Ending conversation",
+      "patterns": [
+        "Bye",
+        "Goodbye",
+        "See you later",
+        "Catch you later",
+        "Have a good day",
+        "Talk to you later",
+        "Alvida",
+        "Bye bye",
+        "Chal bye",
+        "अलविदा",
+        "फिर मिलेंगे",
+        "Exit"
+      ],
+      "responses": [
+        "Goodbye! Have a productive and wonderful day!",
+        "See you later! Feel free to return anytime you need help.",
+        "Take care! It was a pleasure chatting with you."
+      ],
+      "suggestions": [
+        "Hello again",
+        "Help"
+      ]
+    },
+    {
+      "tag": "thanks",
+      "category": "General",
+      "description": "Expressing gratitude",
+      "patterns": [
+        "Thanks",
+        "Thank you",
+        "Thanks a lot",
+        "Much appreciated",
+        "Thank you so much",
+        "Dhanyawad",
+        "Shukriya",
+        "Bohot shukriya",
+        "धन्यवाद",
+        "शुक्रिया",
+        "Thanks for the info"
+      ],
+      "responses": [
+        "You're very welcome! Let me know if there's anything else I can do.",
+        "Glad I could help! Feel free to ask more questions.",
+        "Anytime! I am always here to assist you."
+      ],
+      "suggestions": [
+        "What is Machine Learning?",
+        "Tell me a fact",
+        "What is Java?"
+      ]
+    },
+    {
+      "tag": "bot_identity",
+      "category": "General",
+      "description": "Asking about the bot's identity",
+      "patterns": [
+        "Who are you",
+        "What is your name",
+        "Tell me about yourself",
+        "What are you",
+        "Who created you",
+        "Aap kaun ho",
+        "Tum kaun ho",
+        "Tumhara naam kya hai",
+        "Aapka naam kya hai",
+        "आप कौन हैं",
+        "आपका नाम क्या है",
+        "अपने बारे में बताओ",
+        "Are you an AI"
+      ],
+      "responses": [
+        "I am an intelligent Java-based AI Chatbot developed for CodeAlfa Internship Task 3. I utilize Natural Language Processing (NLP), TF-IDF vectorization, Cosine Similarity matching, and a rule-based engine to interact with you!",
+        "I'm an AI assistant built in Java using NLP techniques and machine learning classification. I'm trained to answer FAQs, perform calculations, manage dialog context, and help with technical questions."
+      ],
+      "suggestions": [
+        "How do you work?",
+        "What NLP techniques do you use?",
+        "What is TF-IDF?"
+      ]
+    },
+    {
+      "tag": "bot_capabilities",
+      "category": "General",
+      "description": "Inquiring what the bot can do",
+      "patterns": [
+        "What can you do",
+        "Help",
+        "List your features",
+        "Show commands",
+        "What are your capabilities",
+        "Tum kya kar sakte ho",
+        "Aap kya kar sakte hain",
+        "Kya features hain",
+        "आप क्या कर सकते हैं",
+        "मदद",
+        "What do you know"
+      ],
+      "responses": [
+        "Here are my key capabilities:\n1. 🧠 **NLP & Machine Learning**: Intent classification using Tokenization, Porter Stemming, TF-IDF, and Cosine Similarity.\n2. ❓ **FAQ Answering**: Instant answers to technical, AI, Java, Python, and CodeAlfa questions.\n3. 🧮 **Math & Calculations**: Solves arithmetic expressions (e.g., `calc 45 * 12 + 100`).\n4. 🕒 **Date & Time**: Provides current time, date, and timezone info.\n5. 💾 **Memory & Context**: Remembers your name and conversation state.\n6. 🌐 **Multilingual**: Understands English, हिंदी (Hindi), and Hinglish.\n7. 📚 **Dynamic Learning**: Train new questions and answers in real-time through the FAQ manager!",
+        "I can answer FAQs on AI/NLP/Java/Python/CodeAlfa, solve math formulas, tell time/date, remember your name, tell jokes, and learn new custom FAQs on the fly!"
+      ],
+      "suggestions": [
+        "What is CodeAlfa?",
+        "Calculate 128 * 16",
+        "What is the time?",
+        "Train a new FAQ"
+      ]
+    },
+    {
+      "tag": "codealfa_info",
+      "category": "CodeAlfa",
+      "description": "Information about CodeAlfa",
+      "patterns": [
+        "What is CodeAlfa",
+        "Tell me about CodeAlfa",
+        "CodeAlfa internship",
+        "What does CodeAlfa do",
+        "CodeAlfa kya hai",
+        "CodeAlfa ke bare me batao",
+        "CodeAlfa internship kya hoti hai",
+        "कोडअल्फा क्या है",
+        "About CodeAlfa"
+      ],
+      "responses": [
+        "CodeAlfa is a dynamic software organization and learning platform that offers virtual internships to help students and aspiring developers gain real-world project experience across domains like Java Development, Artificial Intelligence, Web Development, and Python.",
+        "CodeAlfa provides industry-oriented virtual internships, offering practical hands-on tasks that build core software engineering, problem-solving, and AI skills."
+      ],
+      "suggestions": [
+        "CodeAlfa tasks",
+        "How to submit CodeAlfa task?",
+        "CodeAlfa certificate"
+      ]
+    },
+    {
+      "tag": "codealfa_tasks",
+      "category": "CodeAlfa",
+      "description": "Questions about CodeAlfa internship tasks",
+      "patterns": [
+        "What are the CodeAlfa internship tasks",
+        "Tell me about Task 3",
+        "Java internship tasks",
+        "What tasks are in the Java internship",
+        "CodeAlfa ke tasks kaun se hain",
+        "Java internship me kitne task hain",
+        "Task 3 ke bare me batao",
+        "कोडअल्फा टास्क",
+        "Task list CodeAlfa"
+      ],
+      "responses": [
+        "The CodeAlfa Java Development internship typically includes practical projects such as:\n• **Task 1**: Student Grade Tracker / Word Counter\n• **Task 2**: Hotel Reservation System / Banking Application\n• **Task 3**: Artificial Intelligence Chatbot with NLP & ML techniques (which is me!).\nEach task demonstrates core software architecture, GUI/web integration, and algorithms.",
+        "This project is **Task 3: Artificial Intelligence Chatbot** for CodeAlfa! It fulfills all requirements: Java-based interactive communication, NLP pipeline, ML TF-IDF classification, rule-based answering, FAQ training, and a GUI/Web interface."
+      ],
+      "suggestions": [
+        "How to submit CodeAlfa task?",
+        "What NLP techniques do you use?",
+        "What is Machine Learning?"
+      ]
+    },
+    {
+      "tag": "codealfa_submission",
+      "category": "CodeAlfa",
+      "description": "How to submit CodeAlfa projects",
+      "patterns": [
+        "How to submit CodeAlfa task",
+        "Submission guidelines",
+        "Where to submit project",
+        "How do I submit my internship project",
+        "Task submit kaise kare",
+        "Project kaha submit karna hai",
+        "Submission process kya hai",
+        "टास्क कैसे सबमिट करें",
+        "Task submission process"
+      ],
+      "responses": [
+        "To submit your CodeAlfa task:\n1. Upload your clean source code and documentation to a public GitHub repository.\n2. Include a comprehensive README.md with screenshots, demo video link, setup instructions, and feature explanations.\n3. Create a LinkedIn post demonstrating your project with a video recording, tagging CodeAlfa.\n4. Fill out the official CodeAlfa Task Submission Google Form before the internship deadline."
+      ],
+      "suggestions": [
+        "CodeAlfa certificate",
+        "CodeAlfa tasks",
+        "What is CodeAlfa?"
+      ]
+    },
+    {
+      "tag": "codealfa_certificate",
+      "category": "CodeAlfa",
+      "description": "CodeAlfa internship certificate query",
+      "patterns": [
+        "When will I get CodeAlfa certificate",
+        "How to get internship certificate",
+        "CodeAlfa certificate criteria",
+        "Is there a certificate of completion",
+        "Certificate kab milega",
+        "Certificate kaise milta hai",
+        "Internship completion certificate",
+        "सर्टिफिकेट कैसे मिलेगा"
+      ],
+      "responses": [
+        "CodeAlfa provides a verified Certificate of Completion upon successfully submitting the required internship tasks before the deadline and having them reviewed by the mentoring team."
+      ],
+      "suggestions": [
+        "How to submit CodeAlfa task?",
+        "CodeAlfa tasks"
+      ]
+    },
+    {
+      "tag": "nlp_explanation",
+      "category": "AI & NLP",
+      "description": "What is NLP and how does it work",
+      "patterns": [
+        "What is NLP",
+        "Explain Natural Language Processing",
+        "What does NLP mean",
+        "How does NLP work",
+        "NLP kya hota hai",
+        "NLP samjhao",
+        "Natural language processing kya hai",
+        "NLP kaise kaam karta hai",
+        "एनएलपी क्या है",
+        "NLP techniques"
+      ],
+      "responses": [
+        "**Natural Language Processing (NLP)** is a subfield of Artificial Intelligence that enables computers to understand, interpret, and manipulate human language. Key NLP stages include:\n1. **Tokenization**: Splitting sentences into words.\n2. **Stopword Removal**: Eliminating common filler words.\n3. **Stemming / Lemmatization**: Reducing words to base stems (e.g., using Porter's algorithm).\n4. **Vectorization**: Converting text into numerical vectors via TF-IDF or embeddings.\n5. **Intent Matching**: Classifying queries using Cosine Similarity or ML classifiers."
+      ],
+      "suggestions": [
+        "What is TF-IDF?",
+        "What is Stemming?",
+        "What is Tokenization?",
+        "What is Cosine Similarity?"
+      ]
+    },
+    {
+      "tag": "tfidf_explanation",
+      "category": "AI & NLP",
+      "description": "What is TF-IDF",
+      "patterns": [
+        "What is TF IDF",
+        "Explain TF-IDF",
+        "What does TF-IDF stand for",
+        "How does TF-IDF work",
+        "TF IDF kya hota hai",
+        "TF-IDF samjhao",
+        "TF IDF kaise kaam karta hai",
+        "टीएफ आईडीएफ क्या है",
+        "Why use TF-IDF"
+      ],
+      "responses": [
+        "**TF-IDF** stands for **Term Frequency - Inverse Document Frequency**.\n• **Term Frequency (TF)** measures how frequently a term appears in a specific document: `TF(t, d) = count(t, d) / total_words(d)`.\n• **Inverse Document Frequency (IDF)** measures how rare or informative a term is across all documents: `IDF(t) = log((1 + N) / (1 + DF(t))) + 1`.\n• **TF-IDF Weight** = `TF * IDF`. It gives high weight to unique, meaningful words while penalizing common words across the corpus."
+      ],
+      "suggestions": [
+        "What is Cosine Similarity?",
+        "What is Tokenization?",
+        "What is Stemming?"
+      ]
+    },
+    {
+      "tag": "tokenization_stemming",
+      "category": "AI & NLP",
+      "description": "Explanation of Tokenization and Stemming",
+      "patterns": [
+        "What is Tokenization",
+        "What is Stemming",
+        "Explain Porter Stemmer",
+        "How do tokenization and stemming work",
+        "Tokenization kya hai",
+        "Stemming kya hoti hai",
+        "टोकनाइजेशन क्या है",
+        "Difference between tokenization and stemming"
+      ],
+      "responses": [
+        "• **Tokenization**: The process of breaking a stream of text into individual units called tokens (words, symbols, or phrases), while stripping unnecessary punctuation.\n• **Stemming**: The algorithmic process of stripping suffixes and prefixes to reduce inflected words to their root stem. For example, the **Porter Stemmer** maps `computing`, `computer`, and `computation` to `comput`."
+      ],
+      "suggestions": [
+        "What is TF-IDF?",
+        "What is Cosine Similarity?",
+        "What is NLP?"
+      ]
+    },
+    {
+      "tag": "cosine_similarity",
+      "category": "AI & NLP",
+      "description": "Explanation of Cosine Similarity",
+      "patterns": [
+        "What is Cosine Similarity",
+        "How is Cosine Similarity calculated",
+        "Explain Cosine Similarity in NLP",
+        "Cosine similarity kya hai",
+        "Cosine similarity kaise calculate hoti hai",
+        "Cosine similarity formula"
+      ],
+      "responses": [
+        "**Cosine Similarity** measures the cosine of the angle between two non-zero multidimensional vectors in an inner product space: `cos(θ) = (A · B) / (||A|| * ||B||)`.\nIn NLP and this chatbot:\n• The user query and training FAQ patterns are converted into TF-IDF numerical vectors.\n• A cosine similarity score close to **1.0** indicates high semantic similarity, while **0.0** means no shared vocabulary."
+      ],
+      "suggestions": [
+        "What is TF-IDF?",
+        "What is Machine Learning?",
+        "What is NLP?"
+      ]
+    },
+    {
+      "tag": "machine_learning",
+      "category": "AI & NLP",
+      "description": "What is Machine Learning",
+      "patterns": [
+        "What is Machine Learning",
+        "Explain ML",
+        "Types of Machine Learning",
+        "Supervised vs Unsupervised learning",
+        "Machine learning kya hai",
+        "ML kya hota hai",
+        "मशीन लर्निंग क्या है",
+        "How does Machine Learning work"
+      ],
+      "responses": [
+        "**Machine Learning (ML)** is a branch of Artificial Intelligence where algorithms learn patterns from data to make predictions or decisions without being explicitly programmed.\n• **Supervised Learning**: Model learns from labeled input-output pairs (e.g., classification, regression).\n• **Unsupervised Learning**: Model discovers hidden patterns in unlabeled data (e.g., clustering, PCA).\n• **Reinforcement Learning**: Agent learns optimal actions via rewards and penalties in an environment."
+      ],
+      "suggestions": [
+        "What is Deep Learning?",
+        "What is NLP?",
+        "What is TF-IDF?"
+      ]
+    },
+    {
+      "tag": "python_basics",
+      "category": "Programming",
+      "description": "Information about Python programming language",
+      "patterns": [
+        "What is Python",
+        "Tell me about Python",
+        "Python programming",
+        "Why use Python",
+        "Python kya hai",
+        "Python ke bare me batao",
+        "पायथन क्या है",
+        "Python features",
+        "Explain Python language"
+      ],
+      "responses": [
+        "**Python** is a high-level, interpreted, dynamically typed, and multi-paradigm programming language created by Guido van Rossum.\n• **Key Features**:\n1. **Clean & Readable Syntax**: Code looks almost like plain English.\n2. **Vast Ecosystem**: NumPy, Pandas, TensorFlow, PyTorch, Django, FastAPI.\n3. **Multi-purpose**: Used heavily in Artificial Intelligence, Machine Learning, Data Science, Web Development, and Automation Scripting.",
+        "Python is one of the most popular programming languages today. It is famous for simplicity, concise syntax, and dominance in AI and Data Science."
+      ],
+      "suggestions": [
+        "Python vs Java",
+        "What is Machine Learning?",
+        "OOP Concepts"
+      ]
+    },
+    {
+      "tag": "java_basics",
+      "category": "Java",
+      "description": "What is Java and its features",
+      "patterns": [
+        "What is Java",
+        "Tell me about Java",
+        "Features of Java",
+        "Why use Java",
+        "Java kya hai",
+        "Java ke bare me batao",
+        "Java kyu use karte hain",
+        "जावा क्या है",
+        "Is Java platform independent"
+      ],
+      "responses": [
+        "**Java** is a high-level, class-based, object-oriented, and platform-independent programming language developed by Sun Microsystems (now Oracle). Key features include:\n• **Platform Independence**: 'Write Once, Run Anywhere' (WORA) via bytecode running on the JVM.\n• **Automatic Memory Management**: Garbage collection handles memory reclamation.\n• **Robust & Secure**: Strong type checking, exception handling, and bytecode verifier.\n• **Rich Ecosystem**: Massive collection of libraries, frameworks (Spring, Hibernate), and GUI toolkits (Swing, JavaFX)."
+      ],
+      "suggestions": [
+        "JVM vs JDK vs JRE",
+        "OOP Concepts in Java",
+        "What is Multithreading in Java?"
+      ]
+    },
+    {
+      "tag": "java_collections",
+      "category": "Java",
+      "description": "Java Collections Framework and HashMap vs Hashtable",
+      "patterns": [
+        "Difference between HashMap and Hashtable",
+        "What is Java Collections Framework",
+        "ArrayList vs LinkedList",
+        "HashMap aur Hashtable me kya antar hai",
+        "HashMap vs Hashtable difference in Hindi",
+        "Java Collections kya hai",
+        "हैशमैप और हैशटेबल में अंतर",
+        "HashMap vs TreeMap"
+      ],
+      "responses": [
+        "**HashMap vs Hashtable in Java**:\n• **HashMap**: Not synchronized (fast), allows one `null` key and multiple `null` values, introduced in Java 1.2.\n• **Hashtable**: Synchronized (thread-safe, slower overhead), does NOT allow `null` keys or values, legacy class.\n\n**ArrayList vs LinkedList**:\n• `ArrayList`: Backed by dynamic array, fast random access `O(1)`, slow insertion/deletion in middle `O(n)`.\n• `LinkedList`: Doubly linked list, fast insertion/deletion `O(1)`, slow random access `O(n)`."
+      ],
+      "suggestions": [
+        "What is Multithreading in Java?",
+        "What is Garbage Collection?",
+        "OOP Concepts in Java"
+      ]
+    },
+    {
+      "tag": "oop_concepts",
+      "category": "Programming",
+      "description": "OOP Concepts explanation",
+      "patterns": [
+        "What is OOP",
+        "Explain Object Oriented Programming",
+        "OOP concepts",
+        "4 pillars of OOP",
+        "OOP kya hai",
+        "OOP ke concepts samjhao",
+        "Polymorphism Inheritance Encapsulation Abstraction"
+      ],
+      "responses": [
+        "**Object-Oriented Programming (OOP)** is built around 4 core principles:\n1. **Encapsulation**: Bundling data (variables) and methods inside a single class, protecting state with `private` fields.\n2. **Inheritance**: Deriving new classes from existing ones (`extends`) to reuse code.\n3. **Polymorphism**: Enabling one interface/method to behave differently across objects (Method Overloading & Overriding).\n4. **Abstraction**: Hiding internal implementation details and exposing only essential interfaces (`abstract class`, `interface`)."
+      ],
+      "suggestions": [
+        "What is Java?",
+        "What is Python?",
+        "HashMap vs Hashtable"
+      ]
+    },
+    {
+      "tag": "sql_database",
+      "category": "Database",
+      "description": "SQL and Database explanation",
+      "patterns": [
+        "What is SQL",
+        "Explain databases",
+        "SQL queries",
+        "SQL kya hai",
+        "Database kya hota hai",
+        "RDBMS vs NoSQL"
+      ],
+      "responses": [
+        "**SQL (Structured Query Language)** is standard language for storing, querying, and managing relational databases (such as MySQL, PostgreSQL, Oracle, SQLite).\n• **Core Commands**:\n- `SELECT`: Fetch data\n- `INSERT`: Add records\n- `UPDATE`: Modify records\n- `DELETE`: Remove records"
+      ],
+      "suggestions": [
+        "What is Java?",
+        "What is Python?"
+      ]
+    },
+    {
+      "tag": "joke",
+      "category": "Fun",
+      "description": "Telling a programming or AI joke",
+      "patterns": [
+        "Tell me a joke",
+        "Make me laugh",
+        "Do you know any jokes",
+        "Say something funny",
+        "Joke sunao",
+        "Ek joke batao",
+        "Kuch funny bolo",
+        "चुटकुला सुनाओ",
+        "Another joke"
+      ],
+      "responses": [
+        "Why do Java programmers wear glasses? Because they don't C#! 😄",
+        "There are 10 types of people in the world: those who understand binary, and those who don't. 😂",
+        "A SQL query walks into a bar, walks up to two tables and asks: 'Can I join you?' 🍺",
+        "Why was the JavaScript developer sad? Because they didn't Node how to Express themselves! 🚀",
+        "Why did the developer go broke? Because they used up all their cache! 💰"
+      ],
+      "suggestions": [
+        "Tell me another joke",
+        "Tell me a fun fact",
+        "What can you do?"
+      ]
+    }
+  ]
+}
