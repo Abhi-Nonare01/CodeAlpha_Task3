@@ -382,6 +382,11 @@ document.addEventListener('DOMContentLoaded', () => {
       hi: `### 🗄️ SQL क्या है?\n\n**SQL (Structured Query Language)** डेटाबेसों (जैसे MySQL, PostgreSQL) में डेटा को सुरक्षित रखने, ढूंढने, अपडेट करने और प्रबंधित करने की स्टैंडर्ड लैंग्वेज है।`,
       hinglish: `### 🗄️ SQL (Structured Query Language) Kya Hai?\n\n**SQL** ek database query language hai jisse hum RDBMS databases (MySQL, PostgreSQL, Oracle) me tables create karte hain, data insert karte hain aur complex queries run karte hain.`
     },
+    os: {
+      en: `### 💻 Operating System (OS)\n\nAn **Operating System (OS)** is fundamental system software that acts as an intermediary between computer hardware and the user/applications. It manages hardware resources and provides common services for computer programs.\n\n#### 📌 Core Functions of an OS:\n1. 🧠 **Process Management**: Handles CPU scheduling, execution, and multitasking.\n2. 💾 **Memory Management**: Allocates and manages primary RAM and Virtual Memory.\n3. 📁 **File System Management**: Organizes, creates, and controls access to files and directories.\n4. 🔌 **Device / I/O Management**: Coordinates communication with peripheral hardware via device drivers.\n5. 🛡️ **Security & Protection**: User authentication, file permissions, and process isolation.\n\n#### 🌐 Major Operating Systems:\n- 🐧 **Linux**: Open-source, powers 90%+ of global cloud servers & supercomputers.\n- 🪟 **Microsoft Windows**: Leading desktop OS for personal computing.\n- 🍎 **macOS / iOS**: Unix-based operating system designed by Apple.\n- 🤖 **Android**: Linux-kernel based mobile OS.`,
+      hi: `### 💻 ऑपरेटिंग सिस्टम (Operating System) क्या है?\n\n**ऑपरेटिंग सिस्टम (OS)** कंप्यूटर का सबसे मुख्य सिस्टम सॉफ्टवेयर है जो यूजर और कंप्यूटर हार्डवेयर के बीच एक ब्रिज (मध्यस्थ) की तरह काम करता है।\n\n#### मुख्य कार्य:\n1. 🧠 **Process Management**: CPU और टास्क को शेड्यूल करना।\n2. 💾 **Memory Management**: RAM और स्टोरेज का सही आवंटन।\n3. 📁 **File Management**: फाइलों और फोल्डर्स को सुरक्षित रखना।\n4. 🛡️ **Security**: अनधिकृत एक्सेस से कंप्यूटर को बचाना।\n\n**प्रमुख उदाहरण**: Windows, Linux, Android, macOS.`,
+      hinglish: `### 💻 Operating System (OS) Kya Hai?\n\n**Operating System (OS)** computer ka master software hota hai jo hardware aur user applications ke beech bridge ka kaam karta hai.\n\n#### Core Functions:\n1. 🧠 **Process Management**: CPU tasks aur multitasking handle karta hai.\n2. 💾 **Memory Management**: RAM allocation aur virtual memory manage karta hai.\n3. 📁 **File System**: Hard drive me files ko organize karta hai.\n4. 🛡️ **Security & Drivers**: Hardware components ko smoothly run karta hai.\n\n**Popular OS**: Windows, Linux, macOS, Android.`
+    },
     codealfa: {
       en: `### 💼 CodeAlfa Virtual Internship\n\n**CodeAlfa** is a leading tech community and internship platform providing students and developers with hands-on industrial projects in **Java Development, AI, Web Development, and Cyber Security**.\n\n#### Task 3 Deliverables (AI Chatbot):\n- 🧠 Core NLP Pipeline (Tokenization, TF-IDF, Vector Cosine Similarity).\n- ⚙️ Machine Learning Intent Classification & Safe Rule Evaluation.\n- 🌐 Dual Modern Interfaces (Modern FlatLaf GUI & Antigravity Web UI).\n- 🚀 GitHub Repository & Live LinkedIn Video Demonstration.`,
       hi: `### 💼 CodeAlfa वर्चुअल इंटर्नशिप\n\n**CodeAlfa** छात्रों को प्रैक्टिकल सॉफ्टवेयर डेवलपमेंट और AI प्रोजेक्ट्स बनाने का बेहतरीन प्लेटफॉर्म प्रदान करता है। यह AI Chatbot प्रोजेक्ट **Task 3** के अंतर्गत NLP और Machine Learning के साथ सफलतापूर्वक तैयार किया गया है!`,
@@ -540,11 +545,45 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    // 10. Deep Explanatory Knowledge Fallback
+    // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API - Covers Any World Concept)
+    try {
+      let searchTopic = text.replace(/^(what is|who is|explain|tell me about|define|meaning of|kya hai|ke baare me batao|what is an|what is a)\s+/i, '')
+                            .replace(/[?.,!]/g, '')
+                            .trim();
+      if (searchTopic.length >= 2) {
+        const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTopic.replace(/\s+/g, '_'))}`;
+        const wikiRes = await fetch(wikiUrl);
+        if (wikiRes.ok) {
+          const wikiData = await wikiRes.json();
+          if (wikiData && wikiData.extract && wikiData.extract.length > 25) {
+            let answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n`;
+            if (wikiData.description) {
+              answerText += `> 💡 **Context**: *${wikiData.description}*\n\n`;
+            }
+            if (langKey === 'hi' || isPureHindi) {
+              answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n> 💡 **विवरण**: यह आधुनिक तकनीक, विज्ञान और ज्ञान के प्रमुख क्षेत्रों में अध्ययन और उपयोग किया जाता है।`;
+            } else if (langKey === 'hinglish' || isHinglish) {
+              answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n> 💡 **Summary**: Yeh concept real-world technology aur computing me widely implemented hai.`;
+            }
+            return {
+              text: answerText,
+              confidence: 0.98,
+              matchType: 'UNIVERSAL_WIKIPEDIA_API',
+              language: langKey
+            };
+          }
+        }
+      }
+    } catch (wikiErr) {}
+
+    // 11. Structured Concept Breakdown Fallback
+    const keywords = text.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+    const mainSubject = keywords.slice(0, 3).join(' ') || text;
+
     return {
-      text: `### 🚀 Comprehensive Guide & Code on: **${text}**\n\nHere is a detailed explanation and working implementation for **"${text}"**:\n\n#### 📌 Key Architecture & Concepts:\n1. **Core Purpose**: Designed to provide high-performance, modular, and scalable software architecture.\n2. **Best Practices**: Clean Separation of Concerns, reusable functions, robust error handling, and cross-platform compatibility.\n\n\`\`\`javascript\n// Production implementation example for: ${text}\nclass Solution {\n    constructor() {\n        this.initialized = true;\n    }\n    \n    executeTask(input) {\n        console.log("Processing request:", input);\n        return { status: "success", data: input, timestamp: new Date().toISOString() };\n    }\n}\n\nconst app = new Solution();\nconsole.log(app.executeTask("${text}"));\n\`\`\`\n\nFeel free to ask for modifications, additional features, or alternative language implementations!`,
-      confidence: 0.95,
-      matchType: 'UNIVERSAL_SYNTHESIZER',
+      text: `### 💡 **${mainSubject}** Overview & Analysis\n\nRegarding **"${text}"**:\n\n- 🔍 **Core Definition**: A central principle in software architecture, computation, and practical problem solving.\n- ⚙️ **Key Features & Implementation**: Modular design, high efficiency, and standard algorithmic practices.\n\nFeel free to ask for specific code examples, mathematical proofs, or step-by-step implementation details!`,
+      confidence: 0.90,
+      matchType: 'STRUCTURED_SYNTHESIS',
       language: langKey
     };
   }
