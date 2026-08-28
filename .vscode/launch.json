@@ -1,0 +1,37 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "🤖 Run AI Chatbot (GUI + Web)",
+            "request": "launch",
+            "mainClass": "com.codealfa.chatbot.Main",
+            "args": "--both",
+            "projectName": "ai-chatbot"
+        },
+        {
+            "type": "java",
+            "name": "🖥️ Run AI Chatbot (Desktop GUI)",
+            "request": "launch",
+            "mainClass": "com.codealfa.chatbot.Main",
+            "projectName": "ai-chatbot"
+        },
+        {
+            "type": "java",
+            "name": "🌐 Run AI Chatbot (Web Server Mode)",
+            "request": "launch",
+            "mainClass": "com.codealfa.chatbot.Main",
+            "args": "--web",
+            "projectName": "ai-chatbot"
+        },
+        {
+            "type": "java",
+            "name": "💻 Run AI Chatbot (CLI Terminal)",
+            "request": "launch",
+            "mainClass": "com.codealfa.chatbot.Main",
+            "args": "--cli",
+            "console": "integratedTerminal",
+            "projectName": "ai-chatbot"
+        }
+    ]
+}
