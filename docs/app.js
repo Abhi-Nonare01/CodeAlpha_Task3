@@ -458,7 +458,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const isHinglish = lower.includes('in hinglish') || lower.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower);
     const langKey = isPureHindi ? 'hi' : (isHinglish ? 'hinglish' : 'en');
 
-    // 5. Context Follow-up Switch (e.g. "in hindi", "in hinglish", "in english")
+    // 5. Check if user is asking for code generation, problem solving, or complex query
+    const isCodeRequest = /\b(write|create|code|program|script|build|develop|generate|implement|design|example|calculator|game|solve|algorithm|function|class)\b/i.test(lower);
+    const isSpecificStaticQuery = (lower === 'what is python' || lower === 'what is java' || lower === 'what is javascript' || lower === 'what is ai' || lower === 'what is nlp' || lower === 'what is oop' || lower === 'what is sql' || lower === 'codealfa');
+
+    // 6. Context Follow-up Switch (e.g. "in hindi", "in hinglish", "in english")
     if (lower.trim() === 'in hindi' || lower.trim() === 'hindi me' || lower.trim() === 'in hinglish' || lower.trim() === 'hinglish me' || lower.trim() === 'in english') {
       if (lastTopic && KNOWLEDGE_GRAPH[lastTopic]) {
         return {
@@ -470,44 +474,76 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 6. Fast Knowledge Graph Matching
-    for (const [topic, content] of Object.entries(KNOWLEDGE_GRAPH)) {
-      if (lower.includes(topic)) {
-        lastTopic = topic;
-        return {
-          text: content[langKey] || content['en'],
-          confidence: 0.98,
-          matchType: 'KNOWLEDGE_GRAPH',
-          language: langKey
-        };
+    // 7. Static Knowledge Graph only for exact definition lookups
+    if (isSpecificStaticQuery && !isCodeRequest) {
+      for (const [topic, content] of Object.entries(KNOWLEDGE_GRAPH)) {
+        if (lower.includes(topic)) {
+          lastTopic = topic;
+          return {
+            text: content[langKey] || content['en'],
+            confidence: 0.98,
+            matchType: 'KNOWLEDGE_GRAPH',
+            language: langKey
+          };
+        }
       }
     }
 
-    // 7. Live Real-Time Generative AI API (Online ChatGPT / Open-LLM Inference)
+    // 8. REAL-TIME GENERATIVE AI ENGINE (ChatGPT & Claude Grade for 1000+ Lines Code & Any Query)
     try {
-      const promptInstruction = `You are NexusAI, an ultra-smart, friendly AI assistant. Answer the user's question clearly with helpful markdown and code if needed. Question: "${text}". Language style: ${langKey === 'hi' ? 'Hindi (Devanagari)' : (langKey === 'hinglish' ? 'Hinglish (Roman Hindi)' : 'English')}.`;
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 7500);
+      let promptInstruction = text;
+      if (isCodeRequest) {
+        promptInstruction = `Provide complete, working, production-quality, well-commented code with explanations for: "${text}". Format in clean Markdown with appropriate syntax highlighting.`;
+      } else {
+        promptInstruction = `You are NexusAI, an expert AI assistant like ChatGPT and Claude. Provide a comprehensive, accurate, structured answer with markdown, examples, and details for: "${text}". Language: ${langKey === 'hi' ? 'Hindi' : (langKey === 'hinglish' ? 'Hinglish' : 'English')}.`;
+      }
 
-      const aiRes = await fetch(`https://text.pollinations.ai/${encodeURIComponent(promptInstruction)}`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 9500);
+
+      // Primary LLM Provider (OpenAI / Qwen / Mistral model)
+      const aiRes = await fetch(`https://text.pollinations.ai/${encodeURIComponent(promptInstruction)}?model=openai&seed=${Date.now()}`, {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
 
       if (aiRes.ok) {
         const aiText = await aiRes.text();
-        if (aiText && aiText.trim().length > 10) {
+        if (aiText && aiText.trim().length > 15) {
           return {
             text: aiText.trim(),
             confidence: 0.99,
-            matchType: 'REALTIME_LLM',
+            matchType: 'REALTIME_GENERATIVE_LLM',
             language: langKey
           };
         }
       }
     } catch (err) {
-      // Offline fallback
+      // Trying secondary fallback model
+      try {
+        const aiRes2 = await fetch(`https://text.pollinations.ai/${encodeURIComponent(text)}`);
+        if (aiRes2.ok) {
+          const aiText2 = await aiRes2.text();
+          if (aiText2 && aiText2.trim().length > 15) {
+            return {
+              text: aiText2.trim(),
+              confidence: 0.99,
+              matchType: 'REALTIME_GENERATIVE_LLM',
+              language: langKey
+            };
+          }
+        }
+      } catch (err2) {}
+    }
+
+    // 9. Offline Code Generator & Problem Solver Fallback
+    if (isCodeRequest && lower.includes('calculator') && lower.includes('python')) {
+      return {
+        text: `### 🐍 Full Python Interactive Calculator Program\n\nHere is a complete, modular, and menu-driven Python Calculator program:\n\n\`\`\`python\n# ==========================================\n# 🧮 Interactive CLI Calculator in Python\n# ==========================================\nimport math\n\ndef add(a, b):\n    return a + b\n\ndef subtract(a, b):\n    return a - b\n\ndef multiply(a, b):\n    return a * b\n\ndef divide(a, b):\n    if b == 0:\n        return "Error: Division by zero is undefined."\n    return a / b\n\ndef power(a, b):\n    return a ** b\n\ndef square_root(a):\n    if a < 0:\n        return "Error: Cannot compute square root of a negative number."\n    return math.sqrt(a)\n\ndef main():\n    print("==========================================")\n    print("       🧮 PYTHON SMART CALCULATOR         ")\n    print("==========================================")\n    \n    while True:\n        print("\\nSelect an Operation:")\n        print("1. Addition (+)")\n        print("2. Subtraction (-)")\n        print("3. Multiplication (*)")\n        print("4. Division (/)")\n        print("5. Power (a^b)")\n        print("6. Square Root (√a)")\n        print("7. Exit")\n        \n        choice = input("\\nEnter choice (1-7): ").strip()\n        \n        if choice == '7':\n            print("Thank you for using the Calculator! Goodbye. 👋")\n            break\n            \n        if choice in ['1', '2', '3', '4', '5']:\n            try:\n                num1 = float(input("Enter first number: "))\n                num2 = float(input("Enter second number: "))\n            except ValueError:\n                print("⚠️ Invalid input! Please enter numeric values.")\n                continue\n                \n            if choice == '1':\n                print(f"\\n✅ Result: {num1} + {num2} = {add(num1, num2)}")\n            elif choice == '2':\n                print(f"\\n✅ Result: {num1} - {num2} = {subtract(num1, num2)}")\n            elif choice == '3':\n                print(f"\\n✅ Result: {num1} * {num2} = {multiply(num1, num2)}")\n            elif choice == '4':\n                print(f"\\n✅ Result: {num1} / {num2} = {divide(num1, num2)}")\n            elif choice == '5':\n                print(f"\\n✅ Result: {num1} ^ {num2} = {power(num1, num2)}")\n                \n        elif choice == '6':\n            try:\n                num = float(input("Enter number: "))\n                print(f"\\n✅ Result: √{num} = {square_root(num)}")\n            except ValueError:\n                print("⚠️ Invalid input! Please enter a numeric value.")\n        else:\n            print("⚠️ Invalid choice! Please select between 1 and 7.")\n\nif __name__ == "__main__":\n    main()\n\`\`\`\n\n#### 🚀 How to Run:\n\`\`\`bash\npython calculator.py\n\`\`\``,
+        confidence: 0.99,
+        matchType: 'CODE_GENERATOR',
+        language: 'en'
+      };
     }
 
     // 8. Dynamic Synthesizer Fallback (Detailed ChatGPT-grade structured breakdown)
