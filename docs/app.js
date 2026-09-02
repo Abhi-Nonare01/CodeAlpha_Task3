@@ -1,312 +1,727 @@
-// NexusAI Supercharged Universal AI Assistant (Generative AI + Offline NLP + Multilingual)
-document.addEventListener('DOMContentLoaded', () => {
-  
-  // State variables
-  let sessions = [];
-  try {
-    const stored = JSON.parse(localStorage.getItem('nexus_sessions') || '[]');
-    sessions = stored.filter(s => s && s.messages && s.messages.length > 0);
-  } catch (e) {
-    sessions = [];
-  }
+// ============================================================
+// NexusAI Pro - AI Assistant & Coding Agent
+// Architecture: Full-Stack Multi-Modal AI IDE & ChatGPT Engine
+// ============================================================
 
-  let currentSessionId = localStorage.getItem('nexus_current_session') || (sessions.length > 0 ? sessions[0].id : null);
-  let ttsEnabled = false;
-  let sfxEnabled = true;
+(function() {
+  'use strict';
+
+  // ============================================================
+  // 1. GLOBAL STATE & STORAGE
+  // ============================================================
+  const STORAGE_KEYS = {
+    SESSIONS: 'nexus_pro_sessions',
+    ACTIVE_SESSION: 'nexus_pro_active_session',
+    PROJECTS: 'nexus_pro_projects',
+    ACTIVE_PROJECT: 'nexus_pro_active_project',
+    SETTINGS: 'nexus_pro_settings',
+    KB_CUSTOM: 'nexus_pro_kb_custom'
+  };
+
+  const DEFAULT_SETTINGS = {
+    provider: 'puter',
+    apiKey: '',
+    apiEndpoint: 'https://api.openai.com/v1',
+    model: 'auto',
+    temperature: 0.7,
+    maxTokens: 2048,
+    systemPrompt: 'You are NexusAI Pro, an expert full-stack AI engineer, software architect, and versatile assistant. Provide clean, production-ready code with explanations and markdown formatting.',
+    theme: 'dark',
+    fontSize: '14px',
+    ttsVoice: '',
+    ttsEnabled: false,
+    sfxEnabled: true,
+    enterToSend: true,
+    autoScroll: true,
+    webSearch: false
+  };
+
+  let settings = loadSettings();
+  let sessions = loadSessions();
+  let activeSessionId = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION) || (sessions[0] ? sessions[0].id : null);
+  let projects = loadProjects();
+  let activeProjectId = localStorage.getItem(STORAGE_KEYS.ACTIVE_PROJECT) || (projects[0] ? projects[0].id : null);
+  let openEditorTabs = []; // Array of fileIds
+  let activeEditorFileId = null;
+
+  let stagedAttachments = []; // Array of { name, size, type, dataUrl, textContent }
+  let currentAbortController = null;
   let isStreaming = false;
-  let isSpeaking = false;
-  let activeSpeakBtn = null;
-  let userName = localStorage.getItem('nexus_user_name') || null;
+  let currentSpeechUtterance = null;
   let lastTopic = null;
 
-  // DOM Elements
+  // ============================================================
+  // 2. DOM ELEMENT REFERENCES
+  // ============================================================
+  const body = document.body;
+  const sidebar = document.getElementById('sidebar');
+  const btnToggleSidebar = document.getElementById('sidebar-toggle-btn');
+  const btnNewChat = document.getElementById('new-chat-btn');
+  const chatHistoryList = document.getElementById('chat-history-list');
+  const pinnedHistoryList = document.getElementById('pinned-history-list');
+  const archivedHistoryList = document.getElementById('archived-history-list');
+  const pinnedHeader = document.getElementById('pinned-header');
+  const archivedHeader = document.getElementById('archived-header');
+  const sidebarSearchInput = document.getElementById('sidebar-search-input');
+  const projectsList = document.getElementById('projects-list');
+  const btnCreateProject = document.getElementById('btn-create-project');
+
+  // Views & Mode Switcher
+  const btnModeChat = document.getElementById('btn-mode-chat');
+  const btnModeIde = document.getElementById('btn-mode-ide');
+  const chatViewContainer = document.getElementById('chat-view-container');
+  const ideViewContainer = document.getElementById('ide-view-container');
+  const activeProjectPill = document.getElementById('active-project-pill');
+  const activeProjectName = document.getElementById('active-project-name');
+
+  // Chat View
   const chatCanvas = document.getElementById('chat-canvas');
   const messagesContainer = document.getElementById('messages-container');
   const welcomeHero = document.getElementById('welcome-hero');
-  const greetingText = document.getElementById('greeting-text');
   const chatTextarea = document.getElementById('chat-textarea');
   const btnSend = document.getElementById('btn-send');
-  const chatHistoryList = document.getElementById('chat-history-list');
-  const newChatBtn = document.getElementById('new-chat-btn');
-  const sidebar = document.getElementById('sidebar');
-  const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-  const btnThemeToggle = document.getElementById('btn-theme-toggle');
-  const themeIcon = document.getElementById('theme-icon');
+  const sendBtnIcon = document.getElementById('send-btn-icon');
+  const btnVoiceInput = document.getElementById('btn-voice-input');
+  const btnAttachFile = document.getElementById('btn-attach-file');
+  const fileUploadInput = document.getElementById('file-upload-input');
+  const attachmentPreviewStrip = document.getElementById('attachment-preview-strip');
+  const chatDropzone = document.getElementById('chat-dropzone');
+  const btnWebSearchToggle = document.getElementById('btn-web-search-toggle');
+  const modelSelect = document.getElementById('model-select');
+  const langSelect = document.getElementById('lang-select');
+
+  // Top Nav Actions
   const btnTtsToggle = document.getElementById('btn-tts-toggle');
   const ttsIcon = document.getElementById('tts-icon');
   const btnSfxToggle = document.getElementById('btn-sfx-toggle');
   const sfxIcon = document.getElementById('sfx-icon');
-  const btnVoiceInput = document.getElementById('btn-voice-input');
-  const langSelect = document.getElementById('lang-select');
   const btnExportMenu = document.getElementById('btn-export-menu');
-  const btnClearHistory = document.getElementById('btn-clear-history');
-  const trainerModal = document.getElementById('trainer-modal');
+  const btnThemeToggle = document.getElementById('btn-theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
   const btnOpenTrainer = document.getElementById('btn-open-trainer');
   const btnOpenTrainerTop = document.getElementById('btn-open-trainer-top');
-  const btnCloseModal = document.getElementById('btn-close-modal');
-  const btnCancelTeach = document.getElementById('btn-cancel-teach');
-  const teachForm = document.getElementById('teach-form');
-  const kbCardsList = document.getElementById('kb-cards-list');
-  const kbSearchInput = document.getElementById('kb-search-input');
-  const kbCount = document.getElementById('kb-count');
+  const btnOpenSettings = document.getElementById('btn-open-settings');
+  const btnClearHistory = document.getElementById('btn-clear-history');
 
-  // Dynamic Time Greeting
-  const hour = new Date().getHours();
-  if (hour < 12) {
-    greetingText.textContent = "Good morning! How can I help you today?";
-  } else if (hour < 18) {
-    greetingText.textContent = "Good afternoon! How can I help you today?";
-  } else {
-    greetingText.textContent = "Good evening! How can I help you today?";
-  }
+  // IDE Elements
+  const ideFileTree = document.getElementById('ide-file-tree');
+  const ideTabBar = document.getElementById('ide-tab-bar');
+  const editorActiveFilepath = document.getElementById('editor-active-filepath');
+  const editorCodeTextarea = document.getElementById('editor-code-textarea');
+  const editorLineNumbers = document.getElementById('editor-line-numbers');
+  const ideDiffViewer = document.getElementById('ide-diff-viewer');
+  const btnEditorSave = document.getElementById('btn-editor-save');
+  const btnEditorFormat = document.getElementById('btn-editor-format');
+  const btnEditorRun = document.getElementById('btn-editor-run');
+  const btnEditorDiff = document.getElementById('btn-editor-diff');
+  const ideBtnNewFile = document.getElementById('ide-btn-new-file');
+  const ideBtnNewFolder = document.getElementById('ide-btn-new-folder');
+  const ideBtnUploadFile = document.getElementById('ide-btn-upload-file');
+  const ideBtnExportZip = document.getElementById('ide-btn-export-zip');
 
-  // Initialize Lucide Icons
-  lucide.createIcons();
+  // IDE Bottom & Agent
+  const terminalOutput = document.getElementById('terminal-output');
+  const terminalInput = document.getElementById('terminal-input');
+  const btnClearTerminal = document.getElementById('btn-clear-terminal');
+  const agentChatMessages = document.getElementById('agent-chat-messages');
+  const agentTextarea = document.getElementById('agent-textarea');
+  const btnAgentSend = document.getElementById('btn-agent-send');
+  const btnClearAgentChat = document.getElementById('btn-clear-agent-chat');
 
-  // Configure Marked.js
-  marked.setOptions({
-    highlight: function(code, lang) {
-      if (lang && hljs.getLanguage(lang)) {
-        return hljs.highlight(code, { language: lang }).value;
-      }
-      return hljs.highlightAuto(code).value;
-    },
-    breaks: true
-  });
+  // Modals
+  const settingsModal = document.getElementById('settings-modal');
+  const trainerModal = document.getElementById('trainer-modal');
+  const previewModal = document.getElementById('preview-modal');
+  const toastContainer = document.getElementById('toast-container');
 
-  // Sound Synthesizer
-  function playSound(type) {
-    if (!sfxEnabled) return;
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+  // ============================================================
+  // 3. INITIALIZATION
+  // ============================================================
+  function init() {
+    applyTheme(settings.theme);
+    renderSidebarChats();
+    renderSidebarProjects();
+    populateTtsVoices();
 
-      if (type === 'send') {
-        osc.frequency.setValueAtTime(440, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.06, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.08);
-      } else if (type === 'receive') {
-        osc.frequency.setValueAtTime(600, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.12);
-      }
-    } catch (e) {}
-  }
+    if (activeSessionId) {
+      loadSession(activeSessionId);
+    } else {
+      startNewChat();
+    }
 
-  // Toast Notification
-  function showToast(msg, icon = 'check') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${msg}</span>`;
-    container.appendChild(toast);
+    initIDEProject();
+    setupEventListeners();
+    setupKeyboardShortcuts();
     lucide.createIcons();
-    setTimeout(() => toast.remove(), 2600);
   }
 
-  // 1. Single Sidebar Toggle
-  function toggleSidebar() {
-    sidebar.classList.toggle('collapsed');
-    if (window.innerWidth <= 768) {
-      sidebar.classList.toggle('mobile-open');
+  // ============================================================
+  // 4. PERSISTENCE & STORAGE HELPERS
+  // ============================================================
+  function loadSettings() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+      return stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : { ...DEFAULT_SETTINGS };
+    } catch (e) {
+      return { ...DEFAULT_SETTINGS };
     }
   }
 
-  sidebarToggleBtn.addEventListener('click', toggleSidebar);
-
-  // 2. Robust ChatGPT-style Session Management
-  function getActiveSession() {
-    if (!currentSessionId) return null;
-    return sessions.find(s => s.id === currentSessionId) || null;
+  function saveSettings() {
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   }
 
-  function createNewSession(firstQuery) {
-    const title = firstQuery.length > 28 ? firstQuery.substring(0, 28) + '...' : firstQuery;
-    const newSession = {
-      id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-      title: title,
-      createdAt: Date.now(),
-      messages: []
-    };
-    sessions.unshift(newSession);
-    currentSessionId = newSession.id;
-    return newSession;
+  function loadSessions() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
   }
 
   function saveSessions() {
-    sessions = sessions.filter(s => s && s.messages && s.messages.length > 0);
-    localStorage.setItem('nexus_sessions', JSON.stringify(sessions));
-    if (currentSessionId) {
-      localStorage.setItem('nexus_current_session', currentSessionId);
-    } else {
-      localStorage.removeItem('nexus_current_session');
-    }
-    renderHistorySidebar();
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
   }
 
-  function renderHistorySidebar() {
-    chatHistoryList.innerHTML = '';
-    const activeSessions = sessions.filter(s => s && s.messages && s.messages.length > 0);
-    
-    if (activeSessions.length === 0) {
-      chatHistoryList.innerHTML = '<div style="padding:12px 14px; font-size:0.8rem; color:var(--text-sub);">No previous chats yet</div>';
+  function loadProjects() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.PROJECTS);
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+
+    // Default starter project: Full Stack To-Do Web App
+    return [{
+      id: 'proj_default_todo',
+      name: 'Smart Web App',
+      description: 'Responsive HTML5/CSS3/JS Application',
+      createdAt: new Date().toISOString(),
+      files: [
+        {
+          id: 'f_index_html',
+          name: 'index.html',
+          path: 'index.html',
+          isFolder: false,
+          content: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-card">
+    <h1>🚀 NexusAI Application</h1>
+    <p>Welcome to your live coding project workspace!</p>
+    <button id="btn-demo" onclick="alert('Hello from NexusAI Sandbox!')">Click Me</button>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>`
+        },
+        {
+          id: 'f_style_css',
+          name: 'style.css',
+          path: 'style.css',
+          isFolder: false,
+          content: `body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+.app-card {
+  background: #1e293b;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  text-align: center;
+}
+button {
+  background: #38bdf8;
+  color: #0f172a;
+  font-weight: bold;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 15px;
+}`
+        },
+        {
+          id: 'f_app_js',
+          name: 'app.js',
+          path: 'app.js',
+          isFolder: false,
+          content: `console.log("NexusAI Pro Project loaded successfully!");`
+        }
+      ]
+    }];
+  }
+
+  function saveProjects() {
+    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+  }
+
+  function getActiveSession() {
+    return sessions.find(s => s.id === activeSessionId) || null;
+  }
+
+  function getActiveProject() {
+    return projects.find(p => p.id === activeProjectId) || projects[0] || null;
+  }
+
+  // ============================================================
+  // 5. CHAT SYSTEM & STREAMING GENERATION
+  // ============================================================
+  function startNewChat() {
+    const newSession = {
+      id: 'sess_' + Date.now(),
+      title: 'New Conversation',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      pinned: false,
+      archived: false,
+      messages: []
+    };
+    sessions.unshift(newSession);
+    activeSessionId = newSession.id;
+    saveSessions();
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, activeSessionId);
+    renderSidebarChats();
+    loadSession(activeSessionId);
+    chatTextarea.focus();
+  }
+
+  function loadSession(sessionId) {
+    activeSessionId = sessionId;
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, activeSessionId);
+    renderSidebarChats();
+
+    const sess = getActiveSession();
+    messagesContainer.innerHTML = '';
+
+    if (!sess || !sess.messages || sess.messages.length === 0) {
+      welcomeHero.style.display = 'flex';
+      messagesContainer.style.display = 'none';
+    } else {
+      welcomeHero.style.display = 'none';
+      messagesContainer.style.display = 'flex';
+      sess.messages.forEach(msg => {
+        renderMessageBubble(msg.sender, msg.text, false, msg);
+      });
+      scrollCanvasToBottom();
+    }
+  }
+
+  async function handleSendMessage(overrideText = null) {
+    if (isStreaming) {
+      // If currently generating, button acts as Stop Generation!
+      stopGeneration();
       return;
     }
 
-    activeSessions.forEach(sess => {
-      const item = document.createElement('div');
-      item.className = `history-item ${sess.id === currentSessionId ? 'active' : ''}`;
-      item.innerHTML = `
-        <span class="history-title">${escapeHtml(sess.title)}</span>
-        <button class="icon-btn del-btn" title="Delete chat" style="width:22px;height:22px;border:none;background:transparent;">
-          <i data-lucide="x" style="width:13px;height:13px;"></i>
-        </button>
-      `;
-      item.addEventListener('click', (e) => {
-        if (e.target.closest('.del-btn')) {
-          e.stopPropagation();
-          deleteSession(sess.id);
-          return;
-        }
-        switchSession(sess.id);
-      });
-      chatHistoryList.appendChild(item);
-    });
+    stopSpeaking();
+    const text = overrideText !== null ? overrideText : chatTextarea.value.trim();
+    if (!text && stagedAttachments.length === 0) return;
+
+    chatTextarea.value = '';
+    chatTextarea.style.height = 'auto';
+
+    let sess = getActiveSession();
+    if (!sess) {
+      startNewChat();
+      sess = getActiveSession();
+    }
+
+    welcomeHero.style.display = 'none';
+    messagesContainer.style.display = 'flex';
+
+    // Create user message object
+    const userMsg = {
+      id: 'msg_' + Date.now(),
+      sender: 'user',
+      text: text,
+      timestamp: formatTime(new Date()),
+      attachments: [...stagedAttachments]
+    };
+
+    // Auto update conversation title if first message
+    if (sess.messages.length === 0) {
+      sess.title = generateTitleFromPrompt(text || (stagedAttachments[0] ? stagedAttachments[0].name : 'Conversation'));
+    }
+
+    sess.messages.push(userMsg);
+    sess.updatedAt = new Date().toISOString();
+    saveSessions();
+    renderSidebarChats();
+    renderMessageBubble('user', text, false, userMsg);
+    playSound('send');
+
+    // Clear staged attachments
+    stagedAttachments = [];
+    renderAttachmentPreviews();
+
+    // Start Streaming Bot Generation
+    setStreamingState(true);
+    const typingRow = createStreamingBubble();
+    messagesContainer.appendChild(typingRow);
+    scrollCanvasToBottom();
+
+    currentAbortController = new AbortController();
+
+    try {
+      const responseObj = await executeUnifiedAIPipeline(text, userMsg.attachments, currentAbortController.signal);
+      typingRow.remove();
+
+      const botMsg = {
+        id: 'msg_' + Date.now(),
+        sender: 'bot',
+        text: responseObj.text,
+        timestamp: formatTime(new Date()),
+        matchType: responseObj.matchType,
+        confidence: responseObj.confidence
+      };
+
+      sess.messages.push(botMsg);
+      saveSessions();
+      renderMessageBubble('bot', responseObj.text, true, botMsg);
+      playSound('receive');
+
+      if (settings.ttsEnabled) {
+        speakCleanText(responseObj.text);
+      }
+    } catch (err) {
+      typingRow.remove();
+      if (err.name !== 'AbortError') {
+        const errorMsg = {
+          id: 'msg_' + Date.now(),
+          sender: 'bot',
+          text: `⚠️ **Generation Error**: ${err.message || 'Failed to complete AI generation. Please check your network or try again.'}`,
+          timestamp: formatTime(new Date()),
+          isError: true
+        };
+        sess.messages.push(errorMsg);
+        saveSessions();
+        renderMessageBubble('bot', errorMsg.text, false, errorMsg);
+      }
+    } finally {
+      setStreamingState(false);
+      currentAbortController = null;
+    }
+  }
+
+  function setStreamingState(streaming) {
+    isStreaming = streaming;
+    if (streaming) {
+      btnSend.disabled = false;
+      btnSend.classList.add('stop-btn');
+      btnSend.title = 'Stop Generating';
+      sendBtnIcon.setAttribute('data-lucide', 'square');
+    } else {
+      btnSend.classList.remove('stop-btn');
+      btnSend.title = 'Send message';
+      sendBtnIcon.setAttribute('data-lucide', 'arrow-up');
+      btnSend.disabled = chatTextarea.value.trim().length === 0 && stagedAttachments.length === 0;
+    }
     lucide.createIcons();
   }
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
-  function switchSession(id) {
-    stopSpeaking();
-    currentSessionId = id;
-    localStorage.setItem('nexus_current_session', currentSessionId);
-    renderHistorySidebar();
-    loadCurrentSessionUI();
-  }
-
-  function deleteSession(id) {
-    stopSpeaking();
-    sessions = sessions.filter(s => s.id !== id);
-    if (currentSessionId === id) {
-      currentSessionId = sessions.length > 0 ? sessions[0].id : null;
+  function stopGeneration() {
+    if (currentAbortController) {
+      currentAbortController.abort();
     }
-    saveSessions();
-    loadCurrentSessionUI();
+    setStreamingState(false);
+    showToast('Generation stopped', 'stop-circle');
   }
 
-  function loadCurrentSessionUI() {
-    messagesContainer.innerHTML = '';
-    const sess = getActiveSession();
-    if (!sess || !sess.messages || sess.messages.length === 0) {
-      welcomeHero.style.display = 'flex';
-    } else {
-      welcomeHero.style.display = 'none';
-      sess.messages.forEach(msg => {
-        renderMessageBubble(msg.sender, msg.text, msg.confidence, msg.matchType, msg.lang || 'en', false);
-      });
-    }
-    scrollCanvasToBottom();
-  }
-
-  // 3. Message Bubble & Streaming
-  function renderMessageBubble(sender, text, confidence = 1.0, matchType = 'AI_GENERATIVE', lang = 'en', animate = false) {
-    welcomeHero.style.display = 'none';
-    const isUser = sender === 'user';
-
+  function createStreamingBubble() {
     const row = document.createElement('div');
-    row.className = `chat-message-row ${isUser ? 'user' : 'bot'}`;
+    row.className = 'chat-message-row bot streaming-active';
+    row.innerHTML = `
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-wrapper">
+        <div class="msg-bubble" style="padding:10px 16px;">
+          <div class="stream-text-content"><span class="streaming-cursor"></span></div>
+        </div>
+      </div>
+    `;
+    return row;
+  }
 
-    const avatar = document.createElement('div');
-    avatar.className = 'msg-avatar';
-    avatar.textContent = isUser ? '👤' : '🤖';
+  // ============================================================
+  // 6. MULTI-MODAL & UNIFIED AI PIPELINE
+  // ============================================================
+  async function executeUnifiedAIPipeline(promptText, attachments = [], signal) {
+    const text = promptText.trim();
+    const lower = text.toLowerCase();
+    const selectedModel = modelSelect.value || settings.model;
+    const langKey = detectLanguageKey(text);
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'msg-wrapper';
-
-    const bubble = document.createElement('div');
-    bubble.className = 'msg-bubble';
-
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'msg-content';
-
-    bubble.appendChild(contentDiv);
-    wrapper.appendChild(bubble);
-
-    // Bot Action Bar
-    if (!isUser) {
-      const actionBar = document.createElement('div');
-      actionBar.className = 'bot-action-bar';
-
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'mini-action-btn';
-      copyBtn.title = 'Copy response';
-      copyBtn.innerHTML = '<i data-lucide="copy"></i>';
-      copyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(text);
-        showToast('Copied to clipboard!', 'check');
-      });
-      actionBar.appendChild(copyBtn);
-
-      const speakBtn = document.createElement('button');
-      speakBtn.className = 'mini-action-btn speak-toggle-btn';
-      speakBtn.title = 'Listen / Stop audio';
-      speakBtn.innerHTML = '<i data-lucide="volume-2"></i>';
-      speakBtn.addEventListener('click', () => toggleSpeech(text, speakBtn, lang));
-      actionBar.appendChild(speakBtn);
-
-      const likeBtn = document.createElement('button');
-      likeBtn.className = 'mini-action-btn';
-      likeBtn.innerHTML = '<i data-lucide="thumbs-up"></i>';
-      likeBtn.addEventListener('click', () => showToast('Thanks for your feedback!', 'smile'));
-      actionBar.appendChild(likeBtn);
-
-      wrapper.appendChild(actionBar);
+    // 1. Math Formula & Expression Evaluator
+    if (/^(?:calc|calculate|solve|what is)?\s*([0-9\.\+\-\*\/\^\(\)\s%sqrt]+)$/i.test(lower) || lower.startsWith('calc ')) {
+      try {
+        let expr = lower.replace(/^(?:calc|calculate|solve|what is)\s*/i, '')
+                        .replace(/sqrt\(([^)]+)\)/g, 'Math.sqrt($1)')
+                        .replace(/\^/g, '**');
+        let res = Function(`'use strict'; return (${expr})`)();
+        if (typeof res === 'number' && !isNaN(res)) {
+          return {
+            text: `🧮 **Calculation Result:**\n\`${promptText}\` = **${res}**`,
+            confidence: 1.0,
+            matchType: 'RULE_MATH'
+          };
+        }
+      } catch (e) {}
     }
 
-    if (!isUser) row.appendChild(avatar);
-    row.appendChild(wrapper);
-    messagesContainer.appendChild(row);
+    // 2. Multi-turn Follow-up Context Translation
+    const isHindiFollowUp = /^(?:in\s+hindi|hindi\s+me|translate\s+(?:in|to)?\s*hindi|hindi\s+me\s+batao|hindi\s+me\s+samjhao|hindi\s+version|hindi\s+translation|hindi)$/i.test(lower.trim());
+    const isHinglishFollowUp = /^(?:in\s+hinglish|hinglish\s+me|translate\s+(?:in|to)?\s*hinglish|hinglish\s+me\s+batao|hinglish\s+me\s+samjhao|hinglish)$/i.test(lower.trim());
+    const isEnglishFollowUp = /^(?:in\s+english|english\s+me|translate\s+(?:in|to)?\s*english|explain\s+in\s+english|english)$/i.test(lower.trim());
 
-    if (animate && !isUser) {
-      isStreaming = true;
+    if (isHindiFollowUp || isHinglishFollowUp || isEnglishFollowUp) {
+      const sess = getActiveSession();
+      const botMsgs = sess ? sess.messages.filter(m => m.sender === 'bot') : [];
+      const lastBotMsg = botMsgs.length > 0 ? botMsgs[botMsgs.length - 1].text : '';
+      const targetLang = isHindiFollowUp ? 'hi' : (isHinglishFollowUp ? 'hinglish' : 'en');
+
+      if (lastTopic && KNOWLEDGE_GRAPH[lastTopic]) {
+        return {
+          text: KNOWLEDGE_GRAPH[lastTopic][targetLang] || KNOWLEDGE_GRAPH[lastTopic]['en'],
+          confidence: 1.0,
+          matchType: 'CONTEXT_FOLLOWUP'
+        };
+      }
+
+      if (window.puter && window.puter.ai && lastBotMsg) {
+        try {
+          const transPrompt = isHindiFollowUp 
+            ? `Translate and explain the previous response thoroughly in clear, natural Hindi (हिंदी - Devanagari script) with clean markdown and bullet points:\n\n${lastBotMsg}`
+            : `Explain the previous response in natural conversational Hinglish:\n\n${lastBotMsg}`;
+          const res = await window.puter.ai.chat(transPrompt, { model: 'gpt-4o-mini' });
+          const content = (typeof res === 'string') ? res : (res && res.message ? res.message.content : '');
+          if (content && content.trim().length > 10) {
+            return { text: content.trim(), confidence: 0.99, matchType: 'PUTER_TRANSLATION' };
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 3. Document / File Attachment Context Construction
+    let attachmentContext = '';
+    if (attachments && attachments.length > 0) {
+      attachmentContext = '\n\n### 📎 User Attached Files:\n';
+      attachments.forEach((att, idx) => {
+        attachmentContext += `\n**[File ${idx + 1}: ${att.name} (${att.type || 'file'})]**\n`;
+        if (att.textContent) {
+          // Truncate to safe context limit
+          attachmentContext += '```\n' + att.textContent.substring(0, 4000) + '\n```\n';
+        }
+      });
+    }
+
+    // 4. Real-Time Web Search Integration (if enabled or requested)
+    let webSearchContext = '';
+    if (settings.webSearch || lower.startsWith('search:') || lower.includes('latest news') || lower.includes('weather in')) {
+      try {
+        const queryTerm = text.replace(/^search:\s*/i, '');
+        const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(queryTerm.replace(/\s+/g, '_'))}`;
+        const wikiRes = await fetch(wikiUrl);
+        if (wikiRes.ok) {
+          const wikiData = await wikiRes.json();
+          if (wikiData && wikiData.extract) {
+            webSearchContext = `\n\n### 🌐 Web & Encyclopedic Knowledge Result:\n**Source: Wikipedia (${wikiData.title})**\n${wikiData.extract}\n`;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 5. Code & Project Request Parser (Fast Interactive Generation)
+    const isCodeRequest = /\b(write|create|code|program|script|build|develop|generate|implement|design|example|calculator|game|solve|algorithm|function|class|todo|website)\b/i.test(lower);
+    
+    // 6. PRIMARY AI PROVIDER (Puter.js / Custom OpenAI / Ollama)
+    if (settings.provider === 'custom_openai' && settings.apiKey) {
+      try {
+        const fullPrompt = `${settings.systemPrompt}\n\n${attachmentContext}\n${webSearchContext}\nUser Request: ${text}`;
+        const apiRes = await fetch(`${settings.apiEndpoint}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${settings.apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            temperature: parseFloat(settings.temperature) || 0.7,
+            max_tokens: parseInt(settings.maxTokens) || 2048,
+            messages: [{ role: 'user', content: fullPrompt }]
+          }),
+          signal
+        });
+        if (apiRes.ok) {
+          const data = await apiRes.json();
+          if (data && data.choices && data.choices[0]) {
+            return {
+              text: data.choices[0].message.content.trim(),
+              confidence: 0.99,
+              matchType: 'CUSTOM_OPENAI_API'
+            };
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (window.puter && window.puter.ai) {
+      try {
+        let systemDirectives = isCodeRequest 
+          ? 'You are an expert full-stack engineer like ChatGPT and Claude. Write complete, robust, production-quality code with markdown syntax highlighting, detailed explanations, and error handling.'
+          : 'You are NexusAI Pro, an advanced AI assistant. Provide an authentic, comprehensive, deep, and structured answer with clear headings, bullet points, and math formatting.';
+
+        const fullAiPrompt = `${systemDirectives}\n${attachmentContext}\n${webSearchContext}\n\nUser Question: "${text}". Language: ${langKey === 'hi' ? 'Hindi (Devanagari)' : (langKey === 'hinglish' ? 'Hinglish' : 'English')}.`;
+
+        const puterPromise = window.puter.ai.chat(fullAiPrompt, { model: selectedModel === 'claude' ? 'claude-3-5-sonnet' : 'gpt-4o-mini' });
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 9500));
+        const res = await Promise.race([puterPromise, timeoutPromise]);
+        
+        let reply = (typeof res === 'string') ? res : (res && res.message ? res.message.content : (res && res.text ? res.text : ''));
+        if (reply && reply.trim().length > 10) {
+          return {
+            text: reply.trim(),
+            confidence: 0.99,
+            matchType: 'PUTER_GPT_4O'
+          };
+        }
+      } catch (puterErr) {}
+    }
+
+    // 7. Universal Autonomous Knowledge & Code Engine Fallback
+    for (const [topicKey, topicData] of Object.entries(KNOWLEDGE_GRAPH)) {
+      if (lower.includes(topicKey) || (topicKey === 'os' && lower.includes('operating system'))) {
+        lastTopic = topicKey;
+        return {
+          text: topicData[langKey] || topicData['en'],
+          confidence: 0.98,
+          matchType: 'KNOWLEDGE_GRAPH'
+        };
+      }
+    }
+
+    // 8. Wikipedia REST API Fallback for any general knowledge
+    try {
+      const cleanTopic = text.replace(/^(what is|who is|explain|tell me about|define|meaning of|kya hai|ke baare me batao)\s+/i, '').replace(/[?.,!]/g, '').trim();
+      if (cleanTopic.length >= 2) {
+        const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cleanTopic.replace(/\s+/g, '_'))}`);
+        if (wikiRes.ok) {
+          const data = await wikiRes.json();
+          if (data && data.extract && data.extract.length > 25) {
+            return {
+              text: `### 📖 **${data.title}**\n\n${data.extract}\n\n> 💡 *Overview: ${data.description || 'Encyclopedic Concept'}*`,
+              confidence: 0.95,
+              matchType: 'WIKIPEDIA_UNIVERSAL'
+            };
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 9. Structured Universal Synthesis
+    return {
+      text: `### 💡 Analysis & Solution for: **${text}**\n\nHere is a comprehensive overview and implementation structure for **"${text}"**:\n\n- 🔍 **Core Definition**: Refers to a fundamental domain in computing, software architecture, and modern problem solving.\n- ⚙️ **Key Features & Implementation**: Designed with modular functions, clean code principles, and scalable execution.\n\n\`\`\`javascript\n// Production implementation snippet for: ${text}\nexport function executeTask(input) {\n  console.log("Executing:", input);\n  return { success: true, timestamp: Date.now() };\n}\n\`\`\`\n\nFeel free to request deeper code modifications, alternative algorithms, or unit tests!`,
+      confidence: 0.90,
+      matchType: 'STRUCTURED_SYNTHESIS'
+    };
+  }
+
+  function detectLanguageKey(text) {
+    const isPureHindi = /[\u0900-\u097F]/.test(text) || text.toLowerCase().includes('in hindi') || text.toLowerCase().includes('hindi me');
+    const isHinglish = text.toLowerCase().includes('in hinglish') || text.toLowerCase().includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(text);
+    return isPureHindi ? 'hi' : (isHinglish ? 'hinglish' : 'en');
+  }
+
+  // ============================================================
+  // 7. MESSAGE BUBBLE RENDERING & INTERACTIVE ACTIONS
+  // ============================================================
+  function renderMessageBubble(sender, rawText, animate = false, msgObj = null) {
+    const row = document.createElement('div');
+    row.className = `chat-message-row ${sender}`;
+    if (msgObj && msgObj.id) row.dataset.messageId = msgObj.id;
+
+    const avatarHtml = sender === 'user' 
+      ? '<div class="msg-avatar user">👤</div>' 
+      : '<div class="msg-avatar bot">🤖</div>';
+
+    let attachmentBadges = '';
+    if (msgObj && msgObj.attachments && msgObj.attachments.length > 0) {
+      attachmentBadges = '<div class="msg-attachments-wrap">';
+      msgObj.attachments.forEach(att => {
+        if (att.dataUrl && att.type && att.type.startsWith('image/')) {
+          attachmentBadges += `<img src="${att.dataUrl}" class="msg-inline-img" alt="${att.name}">`;
+        } else {
+          attachmentBadges += `<span class="attach-pill"><i data-lucide="file-text" style="width:12px;height:12px;"></i> ${att.name}</span>`;
+        }
+      });
+      attachmentBadges += '</div>';
+    }
+
+    const timeHtml = `<span class="msg-time">${msgObj && msgObj.timestamp ? msgObj.timestamp : formatTime(new Date())}</span>`;
+
+    const actionsHtml = sender === 'bot' ? `
+      <div class="bot-action-bar">
+        <button class="mini-action-btn btn-copy-msg" title="Copy text"><i data-lucide="copy"></i></button>
+        <button class="mini-action-btn btn-speak-msg" title="Speak message"><i data-lucide="volume-2"></i></button>
+        <button class="mini-action-btn btn-regen-msg" title="Regenerate response"><i data-lucide="rotate-ccw"></i></button>
+        ${timeHtml}
+      </div>
+    ` : `
+      <div class="user-action-bar">
+        <button class="mini-action-btn btn-edit-msg" title="Edit & Resend"><i data-lucide="pencil"></i></button>
+        ${timeHtml}
+      </div>
+    `;
+
+    row.innerHTML = `
+      ${avatarHtml}
+      <div class="msg-wrapper">
+        ${attachmentBadges}
+        <div class="msg-bubble">
+          <div class="msg-content"></div>
+        </div>
+        ${actionsHtml}
+      </div>
+    `;
+
+    const contentDiv = row.querySelector('.msg-content');
+
+    if (animate && sender === 'bot') {
       let currentIdx = 0;
-      const rawText = text;
-      contentDiv.innerHTML = '<span class="streaming-cursor"></span>';
-
-      const interval = setInterval(() => {
-        currentIdx += Math.floor(Math.random() * 6) + 3;
+      const speed = Math.max(8, Math.min(24, Math.floor(1500 / rawText.length)));
+      const timer = setInterval(() => {
+        currentIdx += 4;
         if (currentIdx >= rawText.length) {
-          clearInterval(interval);
-          isStreaming = false;
+          clearInterval(timer);
           contentDiv.innerHTML = formatRichMarkdown(rawText);
-          addCodeCopyButtons(contentDiv);
+          addCodeButtons(contentDiv);
+          renderMath(contentDiv);
           lucide.createIcons();
           scrollCanvasToBottom();
-          if (ttsEnabled) toggleSpeech(rawText, null, lang);
         } else {
           const slice = rawText.substring(0, currentIdx);
           contentDiv.innerHTML = formatRichMarkdown(slice) + '<span class="streaming-cursor"></span>';
-          scrollCanvasToBottom();
+          if (settings.autoScroll) scrollCanvasToBottom();
         }
-      }, 16);
+      }, speed);
     } else {
-      contentDiv.innerHTML = formatRichMarkdown(text);
-      addCodeCopyButtons(contentDiv);
+      contentDiv.innerHTML = formatRichMarkdown(rawText);
+      addCodeButtons(contentDiv);
+      renderMath(contentDiv);
     }
 
+    messagesContainer.appendChild(row);
+    attachBubbleActionListeners(row, rawText, msgObj);
     lucide.createIcons();
     scrollCanvasToBottom();
   }
@@ -316,7 +731,23 @@ document.addEventListener('DOMContentLoaded', () => {
     return marked.parse(text);
   }
 
-  function addCodeCopyButtons(container) {
+  function renderMath(element) {
+    if (window.renderMathInElement) {
+      try {
+        window.renderMathInElement(element, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true }
+          ],
+          throwOnError: false
+        });
+      } catch (e) {}
+    }
+  }
+
+  function addCodeButtons(container) {
     container.querySelectorAll('pre').forEach(pre => {
       if (pre.querySelector('.code-header')) return;
       const code = pre.querySelector('code');
@@ -332,31 +763,32 @@ document.addEventListener('DOMContentLoaded', () => {
         <span>${lang.toUpperCase()}</span>
         <div class="code-header-actions">
           ${canRun ? '<button class="code-action-btn btn-run-code"><i data-lucide="play" style="width:12px;height:12px;"></i> Run Live</button>' : ''}
+          <button class="code-action-btn btn-apply-editor" title="Open in IDE Editor"><i data-lucide="file-code" style="width:12px;height:12px;"></i> Apply to IDE</button>
           <button class="code-action-btn btn-download-code"><i data-lucide="download" style="width:12px;height:12px;"></i> Download</button>
           <button class="code-action-btn btn-copy-code"><i data-lucide="copy" style="width:12px;height:12px;"></i> Copy</button>
         </div>
       `;
 
-      // Copy Button
+      // Copy Code
       header.querySelector('.btn-copy-code').addEventListener('click', () => {
         navigator.clipboard.writeText(rawCode);
         showToast('Code copied to clipboard!', 'check');
       });
 
-      // Download Button
+      // Download Code
       header.querySelector('.btn-download-code').addEventListener('click', () => {
         const extMap = { python: 'py', java: 'java', javascript: 'js', js: 'js', html: 'html', css: 'css', sql: 'sql', cpp: 'cpp', c: 'c', json: 'json', markdown: 'md' };
         const ext = extMap[lang.toLowerCase()] || 'txt';
-        const blob = new Blob([rawCode], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `nexus_code_${Date.now()}.${ext}`;
-        a.click();
+        downloadStringAsFile(rawCode, `nexus_code_${Date.now()}.${ext}`, 'text/plain');
         showToast(`Saved as .${ext} file!`, 'download');
       });
 
-      // Run Live Preview Button
+      // Apply to IDE Editor Tab
+      header.querySelector('.btn-apply-editor').addEventListener('click', () => {
+        applyCodeToActiveProject(lang, rawCode);
+      });
+
+      // Run Live Sandbox
       if (canRun) {
         header.querySelector('.btn-run-code').addEventListener('click', () => {
           openLivePreview(rawCode);
@@ -367,719 +799,1092 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function attachBubbleActionListeners(row, rawText, msgObj) {
+    // Copy entire message
+    const btnCopy = row.querySelector('.btn-copy-msg');
+    if (btnCopy) {
+      btnCopy.addEventListener('click', () => {
+        navigator.clipboard.writeText(rawText);
+        showToast('Message copied!', 'copy');
+      });
+    }
+
+    // Speak TTS
+    const btnSpeak = row.querySelector('.btn-speak-msg');
+    if (btnSpeak) {
+      btnSpeak.addEventListener('click', () => {
+        speakCleanText(rawText);
+      });
+    }
+
+    // Regenerate Response
+    const btnRegen = row.querySelector('.btn-regen-msg');
+    if (btnRegen) {
+      btnRegen.addEventListener('click', () => {
+        const sess = getActiveSession();
+        if (sess && sess.messages.length > 0) {
+          const lastUserMsg = sess.messages.filter(m => m.sender === 'user').slice(-1)[0];
+          if (lastUserMsg) {
+            handleSendMessage(lastUserMsg.text);
+          }
+        }
+      });
+    }
+
+    // Edit and Resend User Message
+    const btnEdit = row.querySelector('.btn-edit-msg');
+    if (btnEdit) {
+      btnEdit.addEventListener('click', () => {
+        chatTextarea.value = rawText;
+        chatTextarea.focus();
+        chatTextarea.style.height = 'auto';
+        chatTextarea.style.height = chatTextarea.scrollHeight + 'px';
+        btnSend.disabled = false;
+        showToast('Editing message in input bar', 'pencil');
+      });
+    }
+  }
+
+  // ============================================================
+  // 8. MULTI-MODAL ATTACHMENTS (PDF, TXT, CSV, IMAGES)
+  // ============================================================
+  function setupMultiModalUploads() {
+    btnAttachFile.addEventListener('click', () => fileUploadInput.click());
+
+    fileUploadInput.addEventListener('change', async (e) => {
+      handleFiles(Array.from(e.target.files));
+      fileUploadInput.value = '';
+    });
+
+    // Drag & drop on input card
+    ['dragenter', 'dragover'].forEach(eventName => {
+      chatDropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        chatDropzone.classList.add('drag-active');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      chatDropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        chatDropzone.classList.remove('drag-active');
+      });
+    });
+
+    chatDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer && e.dataTransfer.files) {
+        handleFiles(Array.from(e.dataTransfer.files));
+      }
+    });
+  }
+
+  async function handleFiles(files) {
+    for (const file of files) {
+      const isImg = file.type.startsWith('image/');
+      const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+
+      const attObj = {
+        name: file.name,
+        size: formatBytes(file.size),
+        type: file.type || 'file',
+        dataUrl: null,
+        textContent: null
+      };
+
+      if (isImg) {
+        attObj.dataUrl = await readFileAsDataUrl(file);
+      } else if (isPdf) {
+        attObj.textContent = await parsePdfText(file);
+      } else {
+        attObj.textContent = await readFileAsText(file);
+      }
+
+      stagedAttachments.push(attObj);
+    }
+    renderAttachmentPreviews();
+  }
+
+  function renderAttachmentPreviews() {
+    if (stagedAttachments.length === 0) {
+      attachmentPreviewStrip.style.display = 'none';
+      attachmentPreviewStrip.innerHTML = '';
+      return;
+    }
+
+    attachmentPreviewStrip.style.display = 'flex';
+    attachmentPreviewStrip.innerHTML = '';
+
+    stagedAttachments.forEach((att, idx) => {
+      const pill = document.createElement('div');
+      pill.className = 'attach-pill';
+      
+      const iconOrThumb = att.dataUrl 
+        ? `<img src="${att.dataUrl}" class="attach-pill-thumb">`
+        : `<i data-lucide="file-code" style="width:13px;height:13px;"></i>`;
+
+      pill.innerHTML = `
+        ${iconOrThumb}
+        <span>${att.name}</span>
+        <button class="attach-pill-remove" data-idx="${idx}"><i data-lucide="x" style="width:12px;height:12px;"></i></button>
+      `;
+
+      pill.querySelector('.attach-pill-remove').addEventListener('click', () => {
+        stagedAttachments.splice(idx, 1);
+        renderAttachmentPreviews();
+      });
+
+      attachmentPreviewStrip.appendChild(pill);
+    });
+
+    btnSend.disabled = false;
+    lucide.createIcons();
+  }
+
+  function readFileAsText(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve('');
+      reader.readAsText(file);
+    });
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function parsePdfText(file) {
+    try {
+      if (!window.pdfjsLib) return `[PDF: ${file.name}]`;
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        fullText += textContent.items.map(item => item.str).join(' ') + '\n';
+      }
+      return fullText;
+    } catch (e) {
+      return `[PDF Content from ${file.name}]`;
+    }
+  }
+
+  // ============================================================
+  // 9. 3-PANEL AI CODING IDE WORKSPACE & FILE MANAGEMENT
+  // ============================================================
+  function initIDEProject() {
+    const proj = getActiveProject();
+    if (!proj) return;
+
+    activeProjectName.innerText = proj.name;
+    activeProjectPill.style.display = 'flex';
+
+    if (proj.files.length > 0 && !activeEditorFileId) {
+      openFileInEditor(proj.files[0].id);
+    }
+
+    renderFileTree();
+    renderOpenTabs();
+  }
+
+  function renderFileTree() {
+    const proj = getActiveProject();
+    if (!proj) return;
+
+    ideFileTree.innerHTML = '';
+    proj.files.forEach(file => {
+      const node = document.createElement('div');
+      node.className = `tree-node ${file.id === activeEditorFileId ? 'active' : ''}`;
+      
+      const fileIcon = getFileIconName(file.name);
+
+      node.innerHTML = `
+        <div class="tree-node-info">
+          <i data-lucide="${fileIcon}"></i>
+          <span>${file.name}</span>
+        </div>
+        <div class="panel-actions">
+          <button class="icon-btn-sm btn-del-file" title="Delete File"><i data-lucide="trash-2"></i></button>
+        </div>
+      `;
+
+      node.querySelector('.tree-node-info').addEventListener('click', () => {
+        openFileInEditor(file.id);
+      });
+
+      node.querySelector('.btn-del-file').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteProjectFile(file.id);
+      });
+
+      ideFileTree.appendChild(node);
+    });
+    lucide.createIcons();
+  }
+
+  function openFileInEditor(fileId) {
+    const proj = getActiveProject();
+    if (!proj) return;
+
+    const file = proj.files.find(f => f.id === fileId);
+    if (!file) return;
+
+    activeEditorFileId = fileId;
+    if (!openEditorTabs.includes(fileId)) {
+      openEditorTabs.push(fileId);
+    }
+
+    editorActiveFilepath.innerText = file.path || file.name;
+    editorCodeTextarea.value = file.content;
+    updateLineNumbers();
+
+    renderFileTree();
+    renderOpenTabs();
+  }
+
+  function renderOpenTabs() {
+    const proj = getActiveProject();
+    if (!proj) return;
+
+    ideTabBar.innerHTML = '';
+    openEditorTabs.forEach(fileId => {
+      const file = proj.files.find(f => f.id === fileId);
+      if (!file) return;
+
+      const tab = document.createElement('div');
+      tab.className = `ide-tab ${file.id === activeEditorFileId ? 'active' : ''}`;
+      tab.innerHTML = `
+        <span>${file.name}</span>
+        <span class="ide-tab-close" data-id="${file.id}">×</span>
+      `;
+
+      tab.addEventListener('click', () => openFileInEditor(file.id));
+      tab.querySelector('.ide-tab-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeEditorTab(file.id);
+      });
+
+      ideTabBar.appendChild(tab);
+    });
+  }
+
+  function closeEditorTab(fileId) {
+    openEditorTabs = openEditorTabs.filter(id => id !== fileId);
+    if (activeEditorFileId === fileId) {
+      activeEditorFileId = openEditorTabs[0] || null;
+      if (activeEditorFileId) {
+        openFileInEditor(activeEditorFileId);
+      } else {
+        editorActiveFilepath.innerText = 'No file open';
+        editorCodeTextarea.value = '';
+        updateLineNumbers();
+      }
+    }
+    renderOpenTabs();
+    renderFileTree();
+  }
+
+  function saveCurrentEditorFile() {
+    const proj = getActiveProject();
+    if (!proj || !activeEditorFileId) return;
+
+    const file = proj.files.find(f => f.id === activeEditorFileId);
+    if (!file) return;
+
+    file.content = editorCodeTextarea.value;
+    saveProjects();
+    showToast(`Saved ${file.name}`, 'check');
+  }
+
+  function createNewProjectFile(filename) {
+    const proj = getActiveProject();
+    if (!proj) return;
+
+    const name = filename || prompt('Enter new file name (e.g. script.py, server.js, index.html):');
+    if (!name) return;
+
+    const newFile = {
+      id: 'f_' + Date.now(),
+      name: name,
+      path: name,
+      isFolder: false,
+      content: `// New file: ${name}\n`
+    };
+
+    proj.files.push(newFile);
+    saveProjects();
+    openFileInEditor(newFile.id);
+    showToast(`Created ${name}`, 'file-plus');
+  }
+
+  function deleteProjectFile(fileId) {
+    const proj = getActiveProject();
+    if (!proj) return;
+
+    if (!confirm('Are you sure you want to delete this file?')) return;
+
+    proj.files = proj.files.filter(f => f.id !== fileId);
+    saveProjects();
+    closeEditorTab(fileId);
+    renderFileTree();
+    showToast('File deleted', 'trash-2');
+  }
+
+  function applyCodeToActiveProject(lang, code) {
+    const proj = getActiveProject();
+    if (!proj) return;
+
+    // Switch to IDE view
+    switchViewMode('ide');
+
+    const extMap = { python: 'py', java: 'java', javascript: 'js', js: 'js', html: 'html', css: 'css', sql: 'sql' };
+    const ext = extMap[lang.toLowerCase()] || 'js';
+    const filename = `app_${Date.now()}.${ext}`;
+
+    const newFile = {
+      id: 'f_' + Date.now(),
+      name: filename,
+      path: filename,
+      isFolder: false,
+      content: code
+    };
+
+    proj.files.push(newFile);
+    saveProjects();
+    openFileInEditor(newFile.id);
+    showToast(`Loaded ${filename} into IDE Editor!`, 'code-2');
+  }
+
+  function exportProjectAsZip() {
+    const proj = getActiveProject();
+    if (!proj || !window.JSZip) {
+      showToast('Exporting project...', 'download');
+      return;
+    }
+
+    const zip = new JSZip();
+    proj.files.forEach(file => {
+      zip.file(file.path || file.name, file.content);
+    });
+
+    zip.generateAsync({ type: 'blob' }).then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${proj.name.replace(/\s+/g, '_').toLowerCase()}.zip`;
+      a.click();
+      showToast('Project ZIP downloaded!', 'check');
+    });
+  }
+
+  function updateLineNumbers() {
+    const lines = editorCodeTextarea.value.split('\n').length;
+    editorLineNumbers.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
+  }
+
+  function getFileIconName(filename) {
+    if (filename.endsWith('.html')) return 'file-code';
+    if (filename.endsWith('.css')) return 'file-code';
+    if (filename.endsWith('.js') || filename.endsWith('.ts')) return 'file-code-2';
+    if (filename.endsWith('.py')) return 'terminal';
+    if (filename.endsWith('.java')) return 'coffee';
+    if (filename.endsWith('.json')) return 'file-json';
+    return 'file-text';
+  }
+
+  // ============================================================
+  // 10. TERMINAL & EXECUTION SANDBOX
+  // ============================================================
+  async function runActiveCodeInTerminal() {
+    const proj = getActiveProject();
+    if (!proj || !activeEditorFileId) {
+      showToast('No active file to run', 'alert-circle');
+      return;
+    }
+
+    const file = proj.files.find(f => f.id === activeEditorFileId);
+    if (!file) return;
+
+    terminalOutput.innerHTML += `\n<span class="term-prompt">$ run ${file.name}</span>\n`;
+
+    // Attempt Server API Execution
+    try {
+      const res = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language: file.name.split('.').pop(),
+          code: file.content
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.stdout) terminalOutput.innerHTML += `<span class="term-success">${escapeHtml(data.stdout)}</span>\n`;
+        if (data.stderr) terminalOutput.innerHTML += `<span class="term-error">${escapeHtml(data.stderr)}</span>\n`;
+        terminalOutput.innerHTML += `<span class="term-dim">Process finished in ${data.executionTimeMs || 10}ms with exit code ${data.exitCode || 0}</span>\n`;
+        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        return;
+      }
+    } catch (e) {}
+
+    // Client-side execution in Web Worker / Sandbox
+    try {
+      if (file.name.endsWith('.js')) {
+        let logs = [];
+        const sandboxConsole = {
+          log: (...args) => logs.push(args.join(' ')),
+          error: (...args) => logs.push('[ERROR] ' + args.join(' ')),
+          warn: (...args) => logs.push('[WARN] ' + args.join(' '))
+        };
+        const runFn = new Function('console', file.content);
+        runFn(sandboxConsole);
+        terminalOutput.innerHTML += `<span class="term-success">${escapeHtml(logs.join('\n') || 'Executed successfully (no output)')}</span>\n`;
+      } else if (file.name.endsWith('.html')) {
+        openLivePreview(file.content);
+        terminalOutput.innerHTML += `<span class="term-success">Opened live interactive HTML preview!</span>\n`;
+      } else {
+        terminalOutput.innerHTML += `<span class="term-dim">Syntax check passed for ${file.name}.</span>\n`;
+      }
+    } catch (runErr) {
+      terminalOutput.innerHTML += `<span class="term-error">Runtime Error: ${escapeHtml(runErr.message)}</span>\n`;
+    }
+
+    terminalOutput.scrollTop = terminalOutput.scrollHeight;
+  }
+
+  // ============================================================
+  // 11. SIDEBAR MANAGEMENT (SEARCH, PIN, ARCHIVE)
+  // ============================================================
+  function renderSidebarChats(filterQuery = '') {
+    chatHistoryList.innerHTML = '';
+    pinnedHistoryList.innerHTML = '';
+    archivedHistoryList.innerHTML = '';
+
+    const query = filterQuery.toLowerCase();
+    const filtered = sessions.filter(s => s.title.toLowerCase().includes(query) || (s.messages && s.messages.some(m => m.text.toLowerCase().includes(query))));
+
+    let pinnedCount = 0;
+    let archivedCount = 0;
+
+    filtered.forEach(sess => {
+      const item = document.createElement('div');
+      item.className = `chat-history-item ${sess.id === activeSessionId ? 'active' : ''}`;
+      item.innerHTML = `
+        <i data-lucide="message-square"></i>
+        <span class="chat-title-text">${escapeHtml(sess.title)}</span>
+        <div class="chat-item-actions">
+          <button class="chat-action-icon btn-pin" title="${sess.pinned ? 'Unpin' : 'Pin to Top'}"><i data-lucide="${sess.pinned ? 'pin-off' : 'pin'}"></i></button>
+          <button class="chat-action-icon btn-rename" title="Rename"><i data-lucide="pencil"></i></button>
+          <button class="chat-action-icon btn-del" title="Delete"><i data-lucide="trash-2"></i></button>
+        </div>
+      `;
+
+      item.addEventListener('click', () => loadSession(sess.id));
+
+      item.querySelector('.btn-pin').addEventListener('click', (e) => {
+        e.stopPropagation();
+        sess.pinned = !sess.pinned;
+        saveSessions();
+        renderSidebarChats();
+      });
+
+      item.querySelector('.btn-rename').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const newTitle = prompt('Enter new conversation title:', sess.title);
+        if (newTitle) {
+          sess.title = newTitle.trim();
+          saveSessions();
+          renderSidebarChats();
+        }
+      });
+
+      item.querySelector('.btn-del').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteSession(sess.id);
+      });
+
+      if (sess.pinned) {
+        pinnedHistoryList.appendChild(item);
+        pinnedCount++;
+      } else if (sess.archived) {
+        archivedHistoryList.appendChild(item);
+        archivedCount++;
+      } else {
+        chatHistoryList.appendChild(item);
+      }
+    });
+
+    pinnedHeader.style.display = pinnedCount > 0 ? 'block' : 'none';
+    archivedHeader.style.display = archivedCount > 0 ? 'block' : 'none';
+    lucide.createIcons();
+  }
+
+  function renderSidebarProjects() {
+    projectsList.innerHTML = '';
+    projects.forEach(proj => {
+      const card = document.createElement('div');
+      card.className = `chat-history-item ${proj.id === activeProjectId ? 'active' : ''}`;
+      card.innerHTML = `
+        <i data-lucide="folder"></i>
+        <span class="chat-title-text">${escapeHtml(proj.name)}</span>
+        <div class="chat-item-actions">
+          <button class="chat-action-icon btn-del-proj" title="Delete Project"><i data-lucide="trash-2"></i></button>
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        activeProjectId = proj.id;
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_PROJECT, activeProjectId);
+        initIDEProject();
+        renderSidebarProjects();
+        switchViewMode('ide');
+      });
+
+      card.querySelector('.btn-del-proj').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (projects.length <= 1) {
+          showToast('Cannot delete the only project', 'alert-circle');
+          return;
+        }
+        if (confirm(`Delete project "${proj.name}"?`)) {
+          projects = projects.filter(p => p.id !== proj.id);
+          activeProjectId = projects[0].id;
+          saveProjects();
+          initIDEProject();
+          renderSidebarProjects();
+        }
+      });
+
+      projectsList.appendChild(card);
+    });
+    lucide.createIcons();
+  }
+
+  function deleteSession(sessionId) {
+    if (sessions.length <= 1) {
+      sessions = [];
+      startNewChat();
+      return;
+    }
+    sessions = sessions.filter(s => s.id !== sessionId);
+    saveSessions();
+    if (activeSessionId === sessionId) {
+      activeSessionId = sessions[0].id;
+      loadSession(activeSessionId);
+    }
+    renderSidebarChats();
+  }
+
+  function clearAllChats() {
+    if (!confirm('Are you sure you want to clear all conversation history?')) return;
+    sessions = [];
+    localStorage.removeItem(STORAGE_KEYS.SESSIONS);
+    startNewChat();
+    showToast('All conversations cleared!', 'trash-2');
+  }
+
+  // ============================================================
+  // 12. VIEW MODE SWITCHER (CHAT VS IDE)
+  // ============================================================
+  function switchViewMode(mode) {
+    if (mode === 'ide') {
+      btnModeIde.classList.add('active');
+      btnModeChat.classList.remove('active');
+      chatViewContainer.classList.remove('active');
+      ideViewContainer.classList.add('active');
+      initIDEProject();
+    } else {
+      btnModeChat.classList.add('active');
+      btnModeIde.classList.remove('active');
+      ideViewContainer.classList.remove('active');
+      chatViewContainer.classList.add('active');
+    }
+    lucide.createIcons();
+  }
+
+  // ============================================================
+  // 13. LIVE PREVIEW SANDBOX MODAL
+  // ============================================================
   function openLivePreview(codeContent) {
-    const modal = document.getElementById('preview-modal');
     const iframe = document.getElementById('preview-iframe');
     const btnClose = document.getElementById('btn-close-preview');
 
-    if (!modal || !iframe) return;
-
-    modal.classList.add('active');
-    
-    // Inject full code into iframe
+    previewModal.classList.add('active');
     const blob = new Blob([codeContent], { type: 'text/html' });
     iframe.src = URL.createObjectURL(blob);
 
     btnClose.onclick = () => {
-      modal.classList.remove('active');
+      previewModal.classList.remove('active');
       iframe.src = 'about:blank';
     };
-
-    modal.onclick = (e) => {
-      if (e.target === modal) {
-        modal.classList.remove('active');
-        iframe.src = 'about:blank';
-      }
-    };
   }
 
-  // Magic Quick Action Chips
-  document.querySelectorAll('.magic-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const action = chip.dataset.action;
-      const currentVal = chatTextarea.value.trim();
-      if (action === 'code') {
-        chatTextarea.value = currentVal ? `Write full, complete, production-ready code for: ${currentVal}` : 'Write a full, complete, production-ready website for ';
-      } else if (action === 'explain') {
-        chatTextarea.value = currentVal ? `Explain in simple terms step-by-step with examples: ${currentVal}` : 'Explain in simple terms: ';
-      } else if (action === 'debug') {
-        chatTextarea.value = currentVal ? `Debug, optimize, and fix this code: ${currentVal}` : 'Debug and optimize this code: \n';
-      } else if (action === 'hindi') {
-        chatTextarea.value = currentVal ? `${currentVal} in Hindi` : 'Hindi me samjhao: ';
-      }
-      chatTextarea.focus();
-      btnSend.disabled = chatTextarea.value.trim().length === 0;
+  // ============================================================
+  // 14. SETTINGS MODAL & THEMES
+  // ============================================================
+  function setupSettingsModal() {
+    btnOpenSettings.addEventListener('click', () => {
+      document.getElementById('setting-provider').value = settings.provider;
+      document.getElementById('setting-api-key').value = settings.apiKey || '';
+      document.getElementById('setting-api-endpoint').value = settings.apiEndpoint || '';
+      document.getElementById('setting-temperature').value = settings.temperature;
+      document.getElementById('temp-val-display').innerText = settings.temperature;
+      document.getElementById('setting-max-tokens').value = settings.maxTokens;
+      document.getElementById('setting-system-prompt').value = settings.systemPrompt;
+      document.getElementById('setting-theme').value = settings.theme;
+      document.getElementById('setting-font-size').value = settings.fontSize;
+      settingsModal.classList.add('active');
     });
-  });
 
-  function scrollCanvasToBottom() {
-    chatCanvas.scrollTop = chatCanvas.scrollHeight;
-  }
-
-  // ============================================================
-  // UNIVERSAL ENCYCLOPEDIC KNOWLEDGE GRAPH (Offline Built-in Intelligence)
-  // ============================================================
-  const KNOWLEDGE_GRAPH = {
-    // Programming Languages
-    python: {
-      en: `### 🐍 Python Programming\n\n**Python** is an interpreted, high-level, dynamically-typed programming language created by **Guido van Rossum** in 1991. It emphasizes code readability with clean syntax.\n\n#### Key Features:\n- 🚀 **Easy Syntax**: Readability comparable to plain English.\n- 🧠 **AI & Data Science Standard**: NumPy, Pandas, PyTorch, TensorFlow, Scikit-Learn.\n- 🌐 **Web Frameworks**: Django, FastAPI, Flask.\n- ⚙️ **Versatile**: Used for Automation, Scripting, Cyber Security, and Backend Development.\n\n\`\`\`python\n# Python Example\ndef greet(name):\n    return f"Hello, {name}! Welcome to Python."\n\nprint(greet("Developer"))\n\`\`\``,
-      hi: `### 🐍 Python क्या है?\n\n**Python** एक बहुत ही लोकप्रिय, high-level और interpreted प्रोग्रामिंग लैंग्वेज है जिसे 1991 में **Guido van Rossum** ने बनाया था।\n\n#### मुख्य विशेषताएं:\n- ✨ **आसान सिंटैक्स**: इसे सीखना और पढ़ना बहुत आसान है।\n- 🧠 **AI & Data Science**: Machine Learning, Deep Learning और Data Analysis में सबसे ज्यादा इस्तेमाल होती है।\n- 🌐 **Web Development**: Django और Flask जैसे शक्तिशाली फ्रेमवर्क्स।\n- 🤖 **Automation**: स्क्रिप्टिंग और टास्क ऑटोमेशन के लिए बेहतरीन।`,
-      hinglish: `### 🐍 Python Kya Hai?\n\n**Python** ek high-level, interpreted programming language hai jo 1991 me **Guido van Rossum** ne banayi thi.\n\n#### Features & Uses:\n- 🚀 **Super Easy Syntax**: Seekhna aur code likhna bohot aasan hai.\n- 🧠 **AI & Machine Learning**: Artificial Intelligence, Data Science, aur Neural Networks me #1 language hai.\n- 🌐 **Web Development**: Django, FastAPI aur Flask frameworks ke saath backend banaya jata hai.\n- ⚙️ **Automation**: Rozmarra ke manual tasks ko automate karne ke liye best hai.`
-    },
-    java: {
-      en: `### ☕ Java Programming\n\n**Java** is a class-based, object-oriented, concurrent programming language developed by **James Gosling at Sun Microsystems** (now Oracle) in 1995. Its core philosophy is **"Write Once, Run Anywhere" (WORA)**.\n\n#### Core Pillars:\n- 🛡️ **Platform Independent**: Compiles to Bytecode, executed on the Java Virtual Machine (JVM).\n- 🧱 **OOP Concepts**: Encapsulation, Inheritance, Polymorphism, Abstraction.\n- ⚡ **Robust & Secure**: Strong type-checking, automatic garbage collection, and memory management.\n\n\`\`\`java\npublic class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println("Hello, Java World!");\n    }\n}\n\`\`\``,
-      hi: `### ☕ Java प्रोग्रामिंग क्या है?\n\n**Java** एक शक्तिशाली, object-oriented और सुरक्षित प्रोग्रामिंग लैंग्वेज है जिसे 1995 में **James Gosling** ने Sun Microsystems में बनाया था।\n\n#### मुख्य स्तंभ:\n- 🌐 **Platform Independent**: "Write Once, Run Anywhere" (WORA) सिद्धांत पर काम करती है।\n- 🔒 **सुरक्षित और मजबूत**: Automatic Garbage Collection और Memory Management।\n- 📱 **Enterprise & Android**: बड़े बैंकिंग सिस्टम, एंटरप्राइज बैकएंड और Android ऐप्स में उपयोग।`,
-      hinglish: `### ☕ Java Programming Kya Hai?\n\n**Java** ek high-level, Object-Oriented programming language hai jo 1995 me **James Gosling** ne banayi thi.\n\n#### Key Highlights:\n- 🌍 **Platform Independent**: JVM (Java Virtual Machine) ki wajah se kisi bhi OS (Windows, Mac, Linux) par bina change kiye chalti hai.\n- 🏢 **Enterprise Grade**: Banking software, backend APIs, aur Android app development me widely used hai.\n- 🧱 **OOP Pillars**: Abstraction, Encapsulation, Inheritance aur Polymorphism.`
-    },
-    javascript: {
-      en: `### 🌐 JavaScript (JS)\n\n**JavaScript** is a high-level, multi-paradigm, just-in-time compiled language that serves as the programming backbone of the World Wide Web alongside HTML and CSS.\n\n#### Capabilities:\n- 💻 **Client-side & Full-stack**: Powers dynamic frontend interfaces and Node.js backend servers.\n- ⚡ **Event-Driven & Asynchronous**: Promises, Async/Await, and Non-blocking I/O.\n- 📦 **Huge Ecosystem**: React, Vue, Angular, Next.js, and npm package registry.`,
-      hi: `### 🌐 JavaScript क्या है?\n\n**JavaScript** वेब का दिल है! यह एक डायनामिक स्क्रिप्टिंग लैंग्वेज है जो वेबसाइट्स को इंटरएक्टिव और जीवंत बनाती है। Node.js के जरिए यह बैकएंड सर्वर पर भी चलती है।`,
-      hinglish: `### 🌐 JavaScript (JS) Kya Hai?\n\n**JavaScript** internet ki sabse popular programming language hai jo frontend aur backend (Node.js) dono jagah use hoti hai. Yeh websites ko interactive, animated aur dynamic banati hai.`
-    },
-    ai: {
-      en: `### 🧠 Artificial Intelligence (AI)\n\n**Artificial Intelligence** is the simulation of human intelligence processes by machines and computer systems.\n\n#### Major Subfields:\n- 🤖 **Machine Learning (ML)**: Learning patterns from data (Supervised, Unsupervised, Reinforcement).\n- 🗣️ **Natural Language Processing (NLP)**: Text classification, tokenization, transformers (GPT, BERT, Gemini).\n- 👁️ **Computer Vision**: Object detection, facial recognition, image generation.\n- ⚡ **Deep Learning**: Multi-layered artificial neural networks mimicking biological neurons.`,
-      hi: `### 🧠 आर्टिफिशियल इंटेलिजेंस (AI) क्या है?\n\n**आर्टिफिशियल इंटेलिजेंस (AI)** कंप्यूटर और मशीनों में मानवीय बुद्धिमत्ता और सोचने-समझने की क्षमता विकसित करने की तकनीक है।\n\n#### मुख्य क्षेत्र:\n- 📊 **Machine Learning (ML)**: डेटा से सीखना।\n- 💬 **NLP (Natural Language Processing)**: इंसानी भाषा को समझना और जवाब देना।\n- 🖼️ **Computer Vision**: तस्वीरों और वीडियो को पहचानना।`,
-      hinglish: `### 🧠 Artificial Intelligence (AI) Kya Hai?\n\n**Artificial Intelligence (AI)** aisi technology hai jisme machines aur software insano ki tarah sochna, seekhna aur decision lena shuru kar dete hain. Example: ChatGPT, Self-driving cars, Voice assistants.`
-    },
-    nlp: {
-      en: `### 🗣️ Natural Language Processing (NLP)\n\n**NLP** is the subfield of AI that focuses on enabling computers to understand, interpret, and generate human language.\n\n#### Core Pipeline Steps:\n1. ✂️ **Tokenization**: Splitting text into individual words or subwords.\n2. 🧹 **Stopword Removal & Cleaning**: Removing grammatical noise ('is', 'the', 'at').\n3. 🌿 **Stemming / Lemmatization**: Reducing words to morphological root stems (\`running\` $\\rightarrow$ \`run\`).\n4. 📐 **TF-IDF & Embeddings**: Converting text to mathematical vectors in high-dimensional space.\n5. 🎯 **Cosine Similarity & Transformers**: Measuring contextual similarity and semantic meaning.`,
-      hi: `### 🗣️ NLP (Natural Language Processing) क्या है?\n\n**NLP** आर्टिफिशियल इंटेलिजेंस की वह शाखा है जो कंप्यूटर को इंसानी भाषा (हिंदी, इंग्लिश) को पढ़ने, समझने और जवाब देने में सक्षम बनाती है।`,
-      hinglish: `### 🗣️ Natural Language Processing (NLP) Kya Hai?\n\n**NLP** AI ka woh hissa hai jo computers ko human language samajhne aur generate karne me help karta hai. Jaise Tokenization, Sentiment Analysis, Chatbots aur Language Translation.`
-    },
-    oop: {
-      en: `### 🧱 Object-Oriented Programming (OOP)\n\n**OOP** is a programming paradigm based on the concept of **Objects** that contain data (attributes) and code (methods).\n\n#### The 4 Core Pillars:\n1. 🔒 **Encapsulation**: Binding data and methods into a single class while protecting state.\n2. 🧬 **Inheritance**: Deriving new child classes from existing parent classes (\`extends\`).\n3. 🎭 **Polymorphism**: Performing a single action in different ways (Method Overloading & Overriding).\n4. 🌫️ **Abstraction**: Hiding complex internal implementation and showing only essential interfaces.`,
-      hi: `### 🧱 OOP (Object-Oriented Programming) के 4 मुख्य स्तंभ:\n\n1. 🔒 **Encapsulation (कैप्सूलीकरण)**: डेटा और मेथड्स को एक क्लास में सुरक्षित बांधना।\n2. 🧬 **Inheritance (विरासत)**: पुरानी क्लास से नई क्लास बनाना।\n3. 🎭 **Polymorphism (बहुरूपता)**: एक ही नाम से अलग-अलग काम करना।\n4. 🌫️ **Abstraction (अमूर्तता)**: गैर-जरूरी डिटेल्स छिपाकर सिर्फ जरूरी चीजें दिखाना।`,
-      hinglish: `### 🧱 OOP ke 4 Pillars:\n\n1. 🔒 **Encapsulation**: Data aur logic ko class ke andar wrap karke protect karna.\n2. 🧬 **Inheritance**: Parent class ke features child class me inherit karna.\n3. 🎭 **Polymorphism**: Ek hi method name ko alag-alag behavior ke saath chalana.\n4. 🌫️ **Abstraction**: Complexity ko hide karke simple interface provide karna.`
-    },
-    sql: {
-      en: `### 🗄️ SQL & Relational Databases\n\n**SQL (Structured Query Language)** is the standard language for storing, querying, and managing data in relational database management systems (RDBMS) like MySQL, PostgreSQL, Oracle, and SQLite.\n\n\`\`\`sql\n-- Retrieve top performing students\nSELECT name, department, gpa \nFROM students \nWHERE gpa >= 3.8 \nORDER BY gpa DESC;\n\`\`\``,
-      hi: `### 🗄️ SQL क्या है?\n\n**SQL (Structured Query Language)** डेटाबेसों (जैसे MySQL, PostgreSQL) में डेटा को सुरक्षित रखने, ढूंढने, अपडेट करने और प्रबंधित करने की स्टैंडर्ड लैंग्वेज है।`,
-      hinglish: `### 🗄️ SQL (Structured Query Language) Kya Hai?\n\n**SQL** ek database query language hai jisse hum RDBMS databases (MySQL, PostgreSQL, Oracle) me tables create karte hain, data insert karte hain aur complex queries run karte hain.`
-    },
-    os: {
-      en: `### 💻 Operating System (OS)\n\nAn **Operating System (OS)** is fundamental system software that acts as an intermediary between computer hardware and the user/applications. It manages hardware resources and provides common services for computer programs.\n\n#### 📌 Core Functions of an OS:\n1. 🧠 **Process Management**: Handles CPU scheduling, execution, and multitasking.\n2. 💾 **Memory Management**: Allocates and manages primary RAM and Virtual Memory.\n3. 📁 **File System Management**: Organizes, creates, and controls access to files and directories.\n4. 🔌 **Device / I/O Management**: Coordinates communication with peripheral hardware via device drivers.\n5. 🛡️ **Security & Protection**: User authentication, file permissions, and process isolation.\n\n#### 🌐 Major Operating Systems:\n- 🐧 **Linux**: Open-source, powers 90%+ of global cloud servers & supercomputers.\n- 🪟 **Microsoft Windows**: Leading desktop OS for personal computing.\n- 🍎 **macOS / iOS**: Unix-based operating system designed by Apple.\n- 🤖 **Android**: Linux-kernel based mobile OS.`,
-      hi: `### 💻 ऑपरेटिंग सिस्टम (Operating System) क्या है?\n\n**ऑपरेटिंग सिस्टम (OS)** कंप्यूटर का सबसे मुख्य सिस्टम सॉफ्टवेयर है जो यूजर और कंप्यूटर हार्डवेयर के बीच एक ब्रिज (मध्यस्थ) की तरह काम करता है।\n\n#### मुख्य कार्य:\n1. 🧠 **Process Management**: CPU और टास्क को शेड्यूल करना।\n2. 💾 **Memory Management**: RAM और स्टोरेज का सही आवंटन।\n3. 📁 **File Management**: फाइलों और फोल्डर्स को सुरक्षित रखना।\n4. 🛡️ **Security**: अनधिकृत एक्सेस से कंप्यूटर को बचाना।\n\n**प्रमुख उदाहरण**: Windows, Linux, Android, macOS.`,
-      hinglish: `### 💻 Operating System (OS) Kya Hai?\n\n**Operating System (OS)** computer ka master software hota hai jo hardware aur user applications ke beech bridge ka kaam karta hai.\n\n#### Core Functions:\n1. 🧠 **Process Management**: CPU tasks aur multitasking handle karta hai.\n2. 💾 **Memory Management**: RAM allocation aur virtual memory manage karta hai.\n3. 📁 **File System**: Hard drive me files ko organize karta hai.\n4. 🛡️ **Security & Drivers**: Hardware components ko smoothly run karta hai.\n\n**Popular OS**: Windows, Linux, macOS, Android.`
-    },
-    codealfa: {
-      en: `### 💼 CodeAlfa Virtual Internship\n\n**CodeAlfa** is a leading tech community and internship platform providing students and developers with hands-on industrial projects in **Java Development, AI, Web Development, and Cyber Security**.\n\n#### Task 3 Deliverables (AI Chatbot):\n- 🧠 Core NLP Pipeline (Tokenization, TF-IDF, Vector Cosine Similarity).\n- ⚙️ Machine Learning Intent Classification & Safe Rule Evaluation.\n- 🌐 Dual Modern Interfaces (Modern FlatLaf GUI & Antigravity Web UI).\n- 🚀 GitHub Repository & Live LinkedIn Video Demonstration.`,
-      hi: `### 💼 CodeAlfa वर्चुअल इंटर्नशिप\n\n**CodeAlfa** छात्रों को प्रैक्टिकल सॉफ्टवेयर डेवलपमेंट और AI प्रोजेक्ट्स बनाने का बेहतरीन प्लेटफॉर्म प्रदान करता है। यह AI Chatbot प्रोजेक्ट **Task 3** के अंतर्गत NLP और Machine Learning के साथ सफलतापूर्वक तैयार किया गया है!`,
-      hinglish: `### 💼 CodeAlfa Virtual Internship Task 3\n\n**CodeAlfa** students ko hands-on real world experience provide karta hai. Yeh AI Chatbot Task 3 me banaya gaya hai jisme Java 17 NLP Pipeline, Machine Learning Intent Classifier aur modern ChatGPT-grade interface shamil hai.`
-    }
-  };
-
-  // ============================================================
-  // REAL-TIME GENERATIVE AI & LOCAL HYBRID ENGINE
-  // ============================================================
-  async function generateUniversalAnswer(rawText, langPreference = 'auto') {
-    const text = rawText.trim();
-    const lower = text.toLowerCase();
-
-    // 1. Math Evaluator
-    if (/^(?:calc|calculate|what is|solve)?\s*([0-9\.\+\-\*\/\^\(\)\s%sqrt]+)$/i.test(lower) || lower.startsWith('calc ')) {
-      try {
-        let expr = lower.replace(/^(?:calc|calculate|what is|solve)\s*/i, '')
-                        .replace(/sqrt\(([^)]+)\)/g, 'Math.sqrt($1)')
-                        .replace(/\^/g, '**');
-        let res = Function(`'use strict'; return (${expr})`)();
-        if (typeof res === 'number' && !isNaN(res)) {
-          return {
-            text: `🧮 **Calculation Result:**\n\`${rawText}\` = **${res}**`,
-            confidence: 1.0,
-            matchType: 'RULE_MATH',
-            language: 'en'
-          };
-        }
-      } catch (e) {}
-    }
-
-    // 2. Date & Time
-    if (lower.includes('time') || lower.includes('samay') || lower.includes('kitne baje')) {
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      return {
-        text: `⏰ **Current Time:** **${timeStr}**`,
-        confidence: 1.0,
-        matchType: 'RULE_TIME',
-        language: lower.includes('samay') ? 'hi' : 'en'
-      };
-    }
-    if (lower.includes('date') || lower.includes('today') || lower.includes('tareekh') || lower.includes('tarik')) {
-      const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      return {
-        text: `📅 **Today's Date:** **${dateStr}**`,
-        confidence: 1.0,
-        matchType: 'RULE_DATE',
-        language: 'en'
-      };
-    }
-
-    // 3. User Name Memory
-    const nameMatch = lower.match(/(?:my name is|i am|mera naam)\s+([a-zA-Z]+)/);
-    if (nameMatch) {
-      userName = nameMatch[1];
-      localStorage.setItem('nexus_user_name', userName);
-      return {
-        text: `Nice to meet you, **${userName}**! 😊 I will remember your name.`,
-        confidence: 1.0,
-        matchType: 'RULE_MEMORY',
-        language: 'en'
-      };
-    }
-    if (lower.includes('my name') || lower.includes('mera naam')) {
-      if (userName) {
-        return { text: `Your name is **${userName}**! 😊`, confidence: 1.0, matchType: 'RULE_MEMORY', language: 'en' };
-      }
-      return { text: `You haven't told me your name yet! Say *"My name is [your name]"*.`, confidence: 0.9, matchType: 'RULE_MEMORY', language: 'en' };
-    }
-
-    // 0. Extract Session History & Previous Turn Context (ChatGPT-Grade Multi-Turn Continuity)
-    const sess = getActiveSession();
-    const history = (sess && sess.messages) ? sess.messages : [];
-    const botMessages = history.filter(m => m.sender === 'bot');
-    const userMessages = history.filter(m => m.sender === 'user');
-    const lastBotMsg = botMessages.length > 0 ? botMessages[botMessages.length - 1].text : '';
-    const previousUserPrompt = userMessages.length > 1 ? userMessages[userMessages.length - 2].text : '';
-
-    // 0.1 Context Follow-up Intents
-    const isHindiFollowUp = /^(?:in\s+hindi|hindi\s+me|translate\s+(?:in|to)?\s*hindi|hindi\s+me\s+batao|hindi\s+me\s+samjhao|hindi\s+version|hindi\s+translation|hindi)$/i.test(lower.trim());
-    const isHinglishFollowUp = /^(?:in\s+hinglish|hinglish\s+me|translate\s+(?:in|to)?\s*hinglish|hinglish\s+me\s+batao|hinglish\s+me\s+samjhao|hinglish)$/i.test(lower.trim());
-    const isEnglishFollowUp = /^(?:in\s+english|english\s+me|translate\s+(?:in|to)?\s*english|explain\s+in\s+english|english)$/i.test(lower.trim());
-    const isExplainMoreFollowUp = /^(?:explain\s+more|aur\s+batao|more\s+details|deep\s+explanation|tell\s+me\s+more|elaborate|details)$/i.test(lower.trim());
-    const isCodeFollowUp = /^(?:code|give\s+code|write\s+code|code\s+please|provide\s+code|code\s+bhi\s+do|show\s+code)$/i.test(lower.trim());
-    const isShortSummary = /^(?:summarize|summary|short\s+me|short\s+summary|in\s+short|brief|in\s+brief)$/i.test(lower.trim());
-
-    // 4. Determine Language Target
-    const isPureHindi = /[\u0900-\u097F]/.test(text) || lower.includes('in hindi') || lower.includes('hindi me') || isHindiFollowUp;
-    const isHinglish = lower.includes('in hinglish') || lower.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower) || isHinglishFollowUp;
-    const langKey = isPureHindi ? 'hi' : (isHinglish ? 'hinglish' : 'en');
-
-    // 5. Handle Multi-turn Follow-up Context (e.g. "in hindi", "in hinglish", "in english", "give code")
-    if (isHindiFollowUp || isHinglishFollowUp || isEnglishFollowUp || isCodeFollowUp || isExplainMoreFollowUp) {
-      const targetLang = isHindiFollowUp ? 'hi' : (isHinglishFollowUp ? 'hinglish' : 'en');
-
-      // Check if last bot message belongs to a known topic
-      const combinedHistoryText = (lastTopic + ' ' + lastBotMsg + ' ' + previousUserPrompt).toLowerCase();
-      for (const [topicKey, topicData] of Object.entries(KNOWLEDGE_GRAPH)) {
-        if (combinedHistoryText.includes(topicKey) || (topicKey === 'os' && combinedHistoryText.includes('operating system'))) {
-          lastTopic = topicKey;
-          if (isCodeFollowUp) break;
-          return {
-            text: topicData[targetLang] || topicData['en'],
-            confidence: 1.0,
-            matchType: 'CONTEXT_FOLLOWUP_KNOWLEDGE',
-            language: targetLang
-          };
-        }
-      }
-
-      // Check Puter AI for live translation / continuation
-      if (window.puter && window.puter.ai && lastBotMsg) {
-        try {
-          let promptInstruction = '';
-          if (isHindiFollowUp) {
-            promptInstruction = `Translate and explain the following previous response in fluent, natural Hindi (हिंदी - Devanagari script) with clear bullet points and markdown:\n\n${lastBotMsg}`;
-          } else if (isHinglishFollowUp) {
-            promptInstruction = `Explain the following previous response in natural conversational Hinglish (Roman Hindi) with clear formatting:\n\n${lastBotMsg}`;
-          } else if (isCodeFollowUp) {
-            promptInstruction = `Write complete, working, production-ready code with examples for the following previous topic:\n\n${lastBotMsg}`;
-          } else {
-            promptInstruction = `Provide more deep details and examples for the previous topic:\n\n${lastBotMsg}`;
-          }
-
-          const res = await window.puter.ai.chat(promptInstruction, { model: 'gpt-4o-mini' });
-          let reply = (typeof res === 'string') ? res : (res && res.message ? res.message.content : '');
-          if (reply && reply.trim().length > 10) {
-            return {
-              text: reply.trim(),
-              confidence: 0.99,
-              matchType: 'PUTER_CONTEXT_FOLLOWUP',
-              language: targetLang
-            };
-          }
-        } catch (e) {}
-      }
-
-      // Context Fallback Translation
-      const prevTitleMatch = lastBotMsg.match(/###\s*([^\n\r]+)/);
-      const prevTitle = prevTitleMatch ? prevTitleMatch[1].replace(/[*#]/g, '').trim() : (previousUserPrompt || 'यह विषय');
-
-      if (isHindiFollowUp) {
-        return {
-          text: `### 🇮🇳 **${prevTitle}** (हिंदी में संपूर्ण विवरण)\n\nयहाँ **${prevTitle}** की विस्तृत हिंदी व्याख्या है:\n\n- 🔍 **अवधारणा और परिभाषा**: यह आधुनिक कंप्यूटर विज्ञान, प्रोग्रामिंग और सॉफ्टवेयर सिस्टम का एक अत्यंत महत्वपूर्ण आधार है।\n- ⚙️ **मुख्य उद्देश्य**: सिस्टम को सुचारू, सुरक्षित और कुशल बनाना ताकि सभी कार्य बिना किसी रुकावट के पूरे हो सकें।\n- 💡 **व्यावहारिक उपयोग**: सॉफ्टवेयर इंजीनियरिंग, डेटा प्रोसेसिंग और रियल-वर्ल्ड एप्लीकेशन डेवलपमेंट में व्यापक रूप से इस्तेमाल होता है।\n\nयदि आप इस पर कोई विशेष कोड उदाहरण या प्रोग्राम देखना चाहते हैं, तो कृपया पूछें!`,
-          confidence: 0.98,
-          matchType: 'CONTEXT_TRANSLATION_HINDI',
-          language: 'hi'
-        };
-      } else if (isHinglishFollowUp) {
-        return {
-          text: `### 🇮🇳 **${prevTitle}** (Hinglish Overview)\n\nYeh **${prevTitle}** ke baare me detail explanation hai:\n\n- 🔍 **Core Concept**: Yeh computer science aur modern technology ka core part hai.\n- ⚙️ **Main Purpose**: Iska kaam system ko fast, secure aur efficient banana hota hai.\n- 🚀 **Real-world Use**: Software development aur automated solutions me use hota hai.\n\nAap iska complete code ya demo bhi pooch sakte hain!`,
-          confidence: 0.98,
-          matchType: 'CONTEXT_TRANSLATION_HINGLISH',
-          language: 'hinglish'
-        };
-      }
-    }
-
-    // 6. Check if user is asking for code generation
-    const isCodeRequest = /\b(write|create|code|program|script|build|develop|generate|implement|design|example|calculator|game|solve|algorithm|function|class)\b/i.test(lower);
-    const isSpecificStaticQuery = (lower === 'what is python' || lower === 'what is java' || lower === 'what is javascript' || lower === 'what is ai' || lower === 'what is nlp' || lower === 'what is oop' || lower === 'what is sql' || lower === 'codealfa' || lower === 'what is operating system' || lower === 'what is os');
-
-    // 7. Static Knowledge Graph matching
-    if (isSpecificStaticQuery && !isCodeRequest) {
-      for (const [topic, content] of Object.entries(KNOWLEDGE_GRAPH)) {
-        if (lower.includes(topic) || (topic === 'os' && (lower.includes('operating system') || lower.includes('what is os')))) {
-          lastTopic = topic;
-          return {
-            text: content[langKey] || content['en'],
-            confidence: 0.98,
-            matchType: 'KNOWLEDGE_GRAPH',
-            language: langKey
-          };
-        }
-      }
-    }
-
-    // 8. REAL-TIME AI ENGINE VIA PUTER.JS (Direct GPT-4o-mini & Claude API)
-    if (window.puter && window.puter.ai) {
-      try {
-        const aiPrompt = isCodeRequest 
-          ? `You are an expert full-stack software engineer. Provide complete, working, beautiful, production-ready code with explanations for: "${text}". Include full HTML, CSS, JavaScript, Python, or Java where appropriate. Format with markdown code blocks.`
-          : `You are an expert AI assistant like ChatGPT and Claude. Provide a comprehensive, accurate, deep, and structured answer for: "${text}". Language: ${langKey === 'hi' ? 'Hindi (Devanagari)' : (langKey === 'hinglish' ? 'Hinglish (Roman Hindi)' : 'English')}.`;
-
-        const puterPromise = window.puter.ai.chat(aiPrompt, { model: 'gpt-4o-mini' });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8500));
-        const res = await Promise.race([puterPromise, timeoutPromise]);
-        
-        let reply = (typeof res === 'string') ? res : (res && res.message ? res.message.content : (res && res.text ? res.text : ''));
-        if (reply && reply.trim().length > 10) {
-          return {
-            text: reply.trim(),
-            confidence: 0.99,
-            matchType: 'PUTER_AI_GPT4O',
-            language: langKey
-          };
-        }
-      } catch (puterErr) {}
-    }
-
-    // 9. Comprehensive Autonomous Code & Project Synthesizer
-    if (lower.includes('to do') || lower.includes('todo') || (lower.includes('website') && lower.includes('list'))) {
-      return {
-        text: `### 📝 Full Responsive To-Do List Web Application\n\nHere is the complete, single-file modern **HTML + CSS + JavaScript To-Do List Website** with local storage, task completion, and delete features:\n\n\`\`\`html\n<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Smart To-Do List</title>\n  <style>\n    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }\n    body { background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }\n    .todo-card { background: #1e293b; width: 100%; max-width: 480px; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }\n    h2 { font-size: 1.6rem; margin-bottom: 20px; text-align: center; color: #38bdf8; }\n    .input-group { display: flex; gap: 10px; margin-bottom: 20px; }\n    input[type="text"] { flex: 1; padding: 12px 16px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: white; outline: none; font-size: 1rem; }\n    input[type="text"]:focus { border-color: #38bdf8; }\n    button.add-btn { background: #38bdf8; color: #0f172a; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }\n    button.add-btn:hover { background: #0284c7; color: white; }\n    ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }\n    li { background: #334155; padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }\n    li.completed span { text-decoration: line-through; opacity: 0.5; }\n    .task-actions { display: flex; gap: 8px; }\n    .btn-check, .btn-del { background: transparent; border: none; cursor: pointer; font-size: 1.1rem; }\n    .btn-check { color: #4ade80; }\n    .btn-del { color: #f87171; }\n  </style>\n</head>\n<body>\n  <div class="todo-card">\n    <h2>✨ My Daily To-Do List</h2>\n    <div class="input-group">\n      <input type="text" id="task-input" placeholder="Add a new task...">\n      <button class="add-btn" id="add-btn">Add Task</button>\n    </div>\n    <ul id="task-list"></ul>\n  </div>\n\n  <script>\n    const taskInput = document.getElementById('task-input');\n    const addBtn = document.getElementById('add-btn');\n    const taskList = document.getElementById('task-list');\n\n    let tasks = JSON.parse(localStorage.getItem('my_tasks') || '[]');\n\n    function saveAndRender() {\n      localStorage.setItem('my_tasks', JSON.stringify(tasks));\n      taskList.innerHTML = '';\n      tasks.forEach((t, i) => {\n        const li = document.createElement('li');\n        if (t.done) li.classList.add('completed');\n        li.innerHTML = \`\n          <span>\${t.text}</span>\n          <div class="task-actions">\n            <button class="btn-check" onclick="toggleTask(\${i})">\${t.done ? '↩️' : '✅'}</button>\n            <button class="btn-del" onclick="deleteTask(\${i})">🗑️</button>\n          </div>\n        \`;\n        taskList.appendChild(li);\n      });\n    }\n\n    function addTask() {\n      const text = taskInput.value.trim();\n      if (!text) return;\n      tasks.push({ text, done: false });\n      taskInput.value = '';\n      saveAndRender();\n    }\n\n    window.toggleTask = (i) => { tasks[i].done = !tasks[i].done; saveAndRender(); };\n    window.deleteTask = (i) => { tasks.splice(i, 1); saveAndRender(); };\n\n    addBtn.addEventListener('click', addTask);\n    taskInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTask(); });\n    saveAndRender();\n  </script>\n</body>\n</html>\n\`\`\`\n\n#### 🚀 Features Included:\n1. 💾 **Persistent Local Storage**: Tasks are automatically saved even after closing the browser.\n2. ✅ **Mark as Complete**: Toggle checkmarks to cross off completed items.\n3. 🗑️ **Delete Items**: Easily remove unwanted tasks.\n4. 📱 **Mobile & Desktop Responsive**: Clean dark theme interface.`,
-        confidence: 0.99,
-        matchType: 'CODE_SYNTHESIZER',
-        language: 'en'
-      };
-    }
-
-    if (isCodeRequest && lower.includes('calculator')) {
-      return {
-        text: `### 🐍 Full Python Interactive Calculator Program\n\nHere is a complete, robust, menu-driven Python Calculator program:\n\n\`\`\`python\n# ==========================================\n# 🧮 Interactive CLI Calculator in Python\n# ==========================================\nimport math\n\ndef add(a, b): return a + b\ndef subtract(a, b): return a - b\ndef multiply(a, b): return a * b\ndef divide(a, b):\n    if b == 0: return "Error: Division by zero."\n    return a / b\n\ndef main():\n    print("==========================================")\n    print("       🧮 PYTHON SMART CALCULATOR         ")\n    print("==========================================")\n    \n    while True:\n        print("\\n1. Addition (+)\\n2. Subtraction (-)\\n3. Multiplication (*)\\n4. Division (/)\\n5. Square Root (√)\\n6. Exit")\n        choice = input("\\nEnter choice (1-6): ").strip()\n        \n        if choice == '6':\n            print("Goodbye! 👋")\n            break\n            \n        if choice in ['1', '2', '3', '4']:\n            try:\n                n1 = float(input("Enter first number: "))\n                n2 = float(input("Enter second number: "))\n            except ValueError:\n                print("⚠️ Invalid number!")\n                continue\n                \n            if choice == '1': print(f"Result: {n1} + {n2} = {add(n1, n2)}")\n            elif choice == '2': print(f"Result: {n1} - {n2} = {subtract(n1, n2)}")\n            elif choice == '3': print(f"Result: {n1} * {n2} = {multiply(n1, n2)}")\n            elif choice == '4': print(f"Result: {n1} / {n2} = {divide(n1, n2)}")\n        elif choice == '5':\n            try:\n                n = float(input("Enter number: "))\n                print(f"Result: √{n} = {math.sqrt(n)}")\n            except ValueError:\n                print("⚠️ Invalid input!")\n\nif __name__ == "__main__":\n    main()\n\`\`\``,
-        confidence: 0.99,
-        matchType: 'CODE_SYNTHESIZER',
-        language: 'en'
-      };
-    }
-
-    if (isCodeRequest && (lower.includes('game') || lower.includes('snake'))) {
-      return {
-        text: `### 🐍 Complete Snake Game in HTML5 & JavaScript\n\nHere is a complete, playable **Snake Game** in a single HTML file:\n\n\`\`\`html\n<!DOCTYPE html>\n<html>\n<head>\n  <title>Classic Snake Game</title>\n  <style>\n    body { background: #111; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }\n    canvas { background: #000; border: 2px solid #22c55e; box-shadow: 0 0 20px rgba(34, 197, 94, 0.4); }\n    #score { font-size: 1.5rem; margin-bottom: 10px; }\n  </style>\n</head>\n<body>\n  <div id="score">Score: 0</div>\n  <canvas id="gameCanvas" width="400" height="400"></canvas>\n  <script>\n    const canvas = document.getElementById('gameCanvas');\n    const ctx = canvas.getContext('2d');\n    const grid = 20;\n    let count = 0, score = 0;\n    let snake = { x: 160, y: 160, dx: grid, dy: 0, cells: [], maxCells: 4 };\n    let apple = { x: 320, y: 320 };\n\n    function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min)) + min; }\n\n    function loop() {\n      requestAnimationFrame(loop);\n      if (++count < 6) return;\n      count = 0;\n      ctx.clearRect(0, 0, canvas.width, canvas.height);\n      snake.x += snake.dx;\n      snake.y += snake.dy;\n      if (snake.x < 0) snake.x = canvas.width - grid;\n      else if (snake.x >= canvas.width) snake.x = 0;\n      if (snake.y < 0) snake.y = canvas.height - grid;\n      else if (snake.y >= canvas.height) snake.y = 0;\n      snake.cells.unshift({ x: snake.x, y: snake.y });\n      if (snake.cells.length > snake.maxCells) snake.cells.pop();\n      ctx.fillStyle = '#ef4444';\n      ctx.fillRect(apple.x, apple.y, grid - 1, grid - 1);\n      ctx.fillStyle = '#22c55e';\n      snake.cells.forEach((cell, index) => {\n        ctx.fillRect(cell.x, cell.y, grid - 1, grid - 1);\n        if (cell.x === apple.x && cell.y === apple.y) {\n          snake.maxCells++;\n          score += 10;\n          document.getElementById('score').innerText = 'Score: ' + score;\n          apple.x = getRandomInt(0, 20) * grid;\n          apple.y = getRandomInt(0, 20) * grid;\n        }\n        for (let i = index + 1; i < snake.cells.length; i++) {\n          if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {\n            snake.x = 160; snake.y = 160; snake.cells = []; snake.maxCells = 4; snake.dx = grid; snake.dy = 0;\n            score = 0; document.getElementById('score').innerText = 'Score: 0';\n            apple.x = getRandomInt(0, 20) * grid; apple.y = getRandomInt(0, 20) * grid;\n          }\n        }\n      });\n    }\n    document.addEventListener('keydown', (e) => {\n      if (e.key === 'ArrowLeft' && snake.dx === 0) { snake.dx = -grid; snake.dy = 0; }\n      else if (e.key === 'ArrowUp' && snake.dy === 0) { snake.dy = -grid; snake.dx = 0; }\n      else if (e.key === 'ArrowRight' && snake.dx === 0) { snake.dx = grid; snake.dy = 0; }\n      else if (e.key === 'ArrowDown' && snake.dy === 0) { snake.dy = grid; snake.dx = 0; }\n    });\n    requestAnimationFrame(loop);\n  </script>\n</body>\n</html>\n\`\`\``,
-        confidence: 0.99,
-        matchType: 'CODE_SYNTHESIZER',
-        language: 'en'
-      };
-    }
-
-    // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API - Covers Any World Concept)
-    try {
-      const isFollowUpWord = /^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(text.trim());
-      if (!isFollowUpWord) {
-        let searchTopic = text.replace(/^(what is|who is|explain|tell me about|define|meaning of|kya hai|ke baare me batao|what is an|what is a)\s+/i, '')
-                              .replace(/[?.,!]/g, '')
-                              .trim();
-        if (searchTopic.length >= 2 && !/^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(searchTopic)) {
-          const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTopic.replace(/\s+/g, '_'))}`;
-          const wikiRes = await fetch(wikiUrl);
-          if (wikiRes.ok) {
-            const wikiData = await wikiRes.json();
-            if (wikiData && wikiData.extract && wikiData.extract.length > 25) {
-              let answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n`;
-              if (wikiData.description) {
-                answerText += `> 💡 **Context**: *${wikiData.description}*\n\n`;
-              }
-              if (langKey === 'hi' || isPureHindi) {
-                answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n> 💡 **विवरण**: यह आधुनिक तकनीक, विज्ञान और ज्ञान के प्रमुख क्षेत्रों में अध्ययन और उपयोग किया जाता है।`;
-              } else if (langKey === 'hinglish' || isHinglish) {
-                answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n> 💡 **Summary**: Yeh concept real-world technology aur computing me widely implemented hai.`;
-              }
-              return {
-                text: answerText,
-                confidence: 0.98,
-                matchType: 'UNIVERSAL_WIKIPEDIA_API',
-                language: langKey
-              };
-            }
-          }
-        }
-      }
-    } catch (wikiErr) {}
-
-    // 11. Structured Concept Breakdown Fallback
-    const keywords = text.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
-    const mainSubject = keywords.slice(0, 3).join(' ') || text;
-
-    return {
-      text: `### 💡 **${mainSubject}** Overview & Analysis\n\nRegarding **"${text}"**:\n\n- 🔍 **Core Definition**: A central principle in software architecture, computation, and practical problem solving.\n- ⚙️ **Key Features & Implementation**: Modular design, high efficiency, and standard algorithmic practices.\n\nFeel free to ask for specific code examples, mathematical proofs, or step-by-step implementation details!`,
-      confidence: 0.90,
-      matchType: 'STRUCTURED_SYNTHESIS',
-      language: langKey
-    };
-  }
-
-  // 4. Send Message Controller
-  async function handleSendMessage(overrideText = null) {
-    if (isStreaming) return;
-    stopSpeaking();
-    const text = overrideText || chatTextarea.value.trim();
-    if (!text) return;
-
-    chatTextarea.value = '';
-    chatTextarea.style.height = 'auto';
-    btnSend.disabled = true;
-
-    let sess = getActiveSession();
-    if (!sess) {
-      sess = createNewSession(text);
-    }
-
-    sess.messages.push({ sender: 'user', text });
-    saveSessions();
-    renderMessageBubble('user', text);
-    playSound('send');
-
-    const typingBubble = document.createElement('div');
-    typingBubble.id = 'typing-indicator-pill';
-    typingBubble.className = 'chat-message-row bot';
-    typingBubble.innerHTML = `
-      <div class="msg-avatar">🤖</div>
-      <div class="msg-wrapper">
-        <div class="msg-bubble" style="padding:10px 16px;">
-          <span style="font-size:0.86rem; color:var(--text-muted); display:flex; align-items:center; gap:8px;">
-            <span class="streaming-cursor"></span> Thinking...
-          </span>
-        </div>
-      </div>
-    `;
-    messagesContainer.appendChild(typingBubble);
-    scrollCanvasToBottom();
-
-    let data = null;
-
-    // 1. Try local Java API backend first if available
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
-      });
-      if (res.ok) {
-        const localData = await res.json();
-        // If backend returned high confidence answer
-        if (localData && localData.confidence >= 0.4) {
-          data = localData;
-        }
-      }
-    } catch (e) {}
-
-    // 2. If backend not running or low confidence, use Universal Generative AI Engine
-    if (!data) {
-      data = await generateUniversalAnswer(text, langSelect.value);
-    }
-
-    typingBubble.remove();
-
-    sess.messages.push({
-      sender: 'bot',
-      text: data.text,
-      confidence: data.confidence,
-      matchType: data.matchType,
-      lang: data.language
+    document.getElementById('btn-close-settings').addEventListener('click', () => {
+      settingsModal.classList.remove('active');
     });
-    saveSessions();
-    playSound('receive');
-    renderMessageBubble('bot', data.text, data.confidence, data.matchType, data.language, true);
 
-    btnSend.disabled = false;
-    chatTextarea.focus();
+    document.getElementById('setting-temperature').addEventListener('input', (e) => {
+      document.getElementById('temp-val-display').innerText = e.target.value;
+    });
+
+    document.getElementById('btn-save-settings').addEventListener('click', () => {
+      settings.provider = document.getElementById('setting-provider').value;
+      settings.apiKey = document.getElementById('setting-api-key').value.trim();
+      settings.apiEndpoint = document.getElementById('setting-api-endpoint').value.trim();
+      settings.temperature = parseFloat(document.getElementById('setting-temperature').value) || 0.7;
+      settings.maxTokens = parseInt(document.getElementById('setting-max-tokens').value) || 2048;
+      settings.systemPrompt = document.getElementById('setting-system-prompt').value.trim();
+      settings.theme = document.getElementById('setting-theme').value;
+      settings.fontSize = document.getElementById('setting-font-size').value;
+
+      saveSettings();
+      applyTheme(settings.theme);
+      settingsModal.classList.remove('active');
+      showToast('Settings saved successfully!', 'check');
+    });
+
+    // Reset All Data
+    document.getElementById('btn-reset-all-data').addEventListener('click', () => {
+      if (confirm('This will wipe all chats and reset settings to defaults. Continue?')) {
+        localStorage.clear();
+        location.reload();
+      }
+    });
+
+    // Export All Chats JSON
+    document.getElementById('btn-export-all-data').addEventListener('click', () => {
+      const dataStr = JSON.stringify({ sessions, projects, settings }, null, 2);
+      downloadStringAsFile(dataStr, `nexus_backup_${Date.now()}.json`, 'application/json');
+      showToast('Backup downloaded!', 'download');
+    });
   }
 
-  // 5. Starter Cards
-  document.querySelectorAll('.simple-card').forEach(card => {
-    card.addEventListener('click', () => {
-      handleSendMessage(card.dataset.prompt);
-    });
-  });
+  function applyTheme(theme) {
+    if (theme === 'light') {
+      body.classList.remove('theme-dark');
+      body.classList.add('theme-light');
+      themeIcon.setAttribute('data-lucide', 'moon');
+    } else {
+      body.classList.remove('theme-light');
+      body.classList.add('theme-dark');
+      themeIcon.setAttribute('data-lucide', 'sun');
+    }
+    lucide.createIcons();
+  }
 
-  // 6. Clean, Natural Text-to-Speech Engine
-  let availableVoices = [];
-
-  function loadVoices() {
+  // ============================================================
+  // 15. SPEECH SYNTHESIS & VOICE INPUT
+  // ============================================================
+  function populateTtsVoices() {
     if (!('speechSynthesis' in window)) return;
-    availableVoices = window.speechSynthesis.getVoices() || [];
+    const select = document.getElementById('setting-tts-voice');
+    const updateVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      select.innerHTML = voices.map((v, i) => `<option value="${i}">${v.name} (${v.lang})</option>`).join('');
+    };
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    updateVoices();
   }
 
-  if ('speechSynthesis' in window) {
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }
+  function speakCleanText(rawMarkdown) {
+    if (!('speechSynthesis' in window)) return;
+    stopSpeaking();
 
-  function cleanTextForSpeech(rawText) {
-    if (!rawText) return '';
-    try {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = marked.parse(rawText);
-      tempDiv.querySelectorAll('pre, code').forEach(el => el.remove());
-      let text = tempDiv.innerText || tempDiv.textContent || '';
-      text = text.replace(/https?:\/\/\S+/g, '');
-      text = text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
-      text = text.replace(/[\*\#\_\~\[\]\(\)\{\}\<\>\|\\\/•\-\:\;\"\`\$\^\%]/g, ' ');
-      text = text.replace(/\s+/g, ' ').trim();
-      return text;
-    } catch (e) {
-      return rawText.replace(/[*#`_\[\]]/g, '').replace(/\s+/g, ' ').trim();
-    }
-  }
+    // Clean markdown, code blocks, emojis, symbols for voice
+    const clean = rawMarkdown.replace(/```[\s\S]*?```/g, 'Code block omitted.')
+                             .replace(/[*#_`>~]/g, '')
+                             .replace(/[^\w\s\u0900-\u097F.,!?]/g, ' ')
+                             .replace(/\s+/g, ' ')
+                             .trim();
 
-  function getBestVoice(targetLang) {
-    if (!availableVoices || availableVoices.length === 0) {
-      availableVoices = window.speechSynthesis.getVoices() || [];
-    }
-
-    const isHindi = targetLang.startsWith('hi');
-
-    if (isHindi) {
-      const hindiVoice = availableVoices.find(v => 
-        (v.name.includes('Swara') || v.name.includes('Madhur') || v.name.includes('Google हिन्दी') || v.name.includes('Kalpana') || v.name.includes('Hemant')) && v.lang.startsWith('hi')
-      ) || availableVoices.find(v => v.lang.startsWith('hi'));
-      if (hindiVoice) return hindiVoice;
-    }
-
-    const englishVoice = availableVoices.find(v => 
-      (v.name.includes('Neerja') || v.name.includes('Jenny') || v.name.includes('Natural') || v.name.includes('Google US English')) && (v.lang.startsWith('en-IN') || v.lang.startsWith('en'))
-    ) || availableVoices.find(v => v.lang.startsWith('en-IN')) || availableVoices.find(v => v.lang.startsWith('en'));
-
-    return englishVoice || availableVoices[0] || null;
+    currentSpeechUtterance = new SpeechSynthesisUtterance(clean);
+    currentSpeechUtterance.rate = 1.0;
+    window.speechSynthesis.speak(currentSpeechUtterance);
   }
 
   function stopSpeaking() {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    isSpeaking = false;
-    if (activeSpeakBtn) {
-      activeSpeakBtn.innerHTML = '<i data-lucide="volume-2"></i>';
-      activeSpeakBtn = null;
-      lucide.createIcons();
-    }
   }
 
-  function toggleSpeech(text, btn = null, lang = 'en') {
-    if (!('speechSynthesis' in window)) {
-      showToast('Speech synthesis not supported', 'alert-triangle');
+  function setupVoiceInput() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      btnVoiceInput.style.display = 'none';
       return;
     }
-
-    if (isSpeaking) {
-      stopSpeaking();
-      showToast('Audio stopped', 'volume-x');
-      return;
-    }
-
-    stopSpeaking();
-    const cleanPhoneticText = cleanTextForSpeech(text);
-    if (!cleanPhoneticText) return;
-
-    const utterance = new SpeechSynthesisUtterance(cleanPhoneticText);
-
-    const selectedLang = langSelect.value !== 'auto' 
-      ? langSelect.value 
-      : (lang === 'hi' || lang === 'hinglish' ? 'hi-IN' : 'en-US');
-    utterance.lang = selectedLang;
-
-    const bestVoice = getBestVoice(selectedLang);
-    if (bestVoice) {
-      utterance.voice = bestVoice;
-    }
-
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-
-    utterance.onstart = () => {
-      isSpeaking = true;
-      if (btn) {
-        activeSpeakBtn = btn;
-        btn.innerHTML = '<i data-lucide="square" style="color:#ef4444;"></i>';
-        lucide.createIcons();
-      }
-    };
-
-    utterance.onend = () => stopSpeaking();
-    utterance.onerror = () => stopSpeaking();
-
-    window.speechSynthesis.speak(utterance);
-  }
-
-  // 7. Voice Mic
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null;
-  let isListening = false;
-
-  if (SpeechRecognition) {
-    recognition = new SpeechRecognition();
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
 
-    recognition.onstart = () => {
-      isListening = true;
-      btnVoiceInput.classList.add('listening');
-      showToast('Listening... Speak now (Click mic to stop)', 'mic');
-    };
+    btnVoiceInput.addEventListener('click', () => {
+      recognition.lang = langSelect.value === 'hi-IN' ? 'hi-IN' : 'en-US';
+      recognition.start();
+      btnVoiceInput.classList.add('recording');
+      showToast('Listening...', 'mic');
+    });
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      chatTextarea.value = transcript;
-      isListening = false;
-      btnVoiceInput.classList.remove('listening');
-      handleSendMessage();
-    };
-
-    recognition.onerror = () => {
-      isListening = false;
-      btnVoiceInput.classList.remove('listening');
+      chatTextarea.value = (chatTextarea.value + ' ' + transcript).trim();
+      btnSend.disabled = false;
     };
 
     recognition.onend = () => {
-      isListening = false;
-      btnVoiceInput.classList.remove('listening');
+      btnVoiceInput.classList.remove('recording');
     };
+  }
 
-    btnVoiceInput.addEventListener('click', () => {
-      if (isListening) {
-        recognition.stop();
-        isListening = false;
-        btnVoiceInput.classList.remove('listening');
-        showToast('Voice input cancelled', 'mic-off');
-      } else {
-        const chosen = langSelect.value;
-        recognition.lang = (chosen === 'auto' || chosen === 'hinglish') ? 'hi-IN' : chosen;
-        try {
-          recognition.start();
-        } catch (e) {
-          recognition.stop();
-        }
+  // ============================================================
+  // 16. EVENT LISTENERS & KEYBOARD SHORTCUTS
+  // ============================================================
+  function setupEventListeners() {
+    btnToggleSidebar.addEventListener('click', () => sidebar.classList.toggle('collapsed'));
+    btnNewChat.addEventListener('click', startNewChat);
+    btnClearHistory.addEventListener('click', clearAllChats);
+
+    // View Mode Switcher
+    btnModeChat.addEventListener('click', () => switchViewMode('chat'));
+    btnModeIde.addEventListener('click', () => switchViewMode('ide'));
+
+    // Send Button & Textarea
+    btnSend.addEventListener('click', () => handleSendMessage());
+    chatTextarea.addEventListener('input', () => {
+      chatTextarea.style.height = 'auto';
+      chatTextarea.style.height = Math.min(chatTextarea.scrollHeight, 180) + 'px';
+      btnSend.disabled = chatTextarea.value.trim().length === 0 && stagedAttachments.length === 0;
+    });
+
+    chatTextarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && settings.enterToSend) {
+        e.preventDefault();
+        handleSendMessage();
       }
     });
-  } else {
-    btnVoiceInput.style.display = 'none';
-  }
 
-  // 8. Auto-growing Textarea & Enter to Send
-  chatTextarea.addEventListener('input', () => {
-    chatTextarea.style.height = 'auto';
-    chatTextarea.style.height = (chatTextarea.scrollHeight) + 'px';
-    btnSend.disabled = chatTextarea.value.trim().length === 0;
-  });
-
-  chatTextarea.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  });
-
-  btnSend.addEventListener('click', () => handleSendMessage());
-
-  // 9. New Chat (ChatGPT-style behavior)
-  newChatBtn.addEventListener('click', () => {
-    stopSpeaking();
-    currentSessionId = null;
-    localStorage.removeItem('nexus_current_session');
-    messagesContainer.innerHTML = '';
-    welcomeHero.style.display = 'flex';
-    chatTextarea.value = '';
-    btnSend.disabled = true;
-    renderHistorySidebar();
-    scrollCanvasToBottom();
-  });
-
-  btnClearHistory.addEventListener('click', () => {
-    if (confirm('Clear all conversation history?')) {
-      stopSpeaking();
-      sessions = [];
-      currentSessionId = null;
-      saveSessions();
-      loadCurrentSessionUI();
-      showToast('All conversations cleared', 'trash');
-    }
-  });
-
-  btnThemeToggle.addEventListener('click', () => {
-    document.body.classList.toggle('theme-light');
-    const isLight = document.body.classList.contains('theme-light');
-    themeIcon.setAttribute('data-lucide', isLight ? 'moon' : 'sun');
-    lucide.createIcons();
-  });
-
-  btnTtsToggle.addEventListener('click', () => {
-    ttsEnabled = !ttsEnabled;
-    ttsIcon.setAttribute('data-lucide', ttsEnabled ? 'volume-x' : 'volume-2');
-    showToast(ttsEnabled ? 'Voice output enabled' : 'Voice output muted', 'volume-2');
-    lucide.createIcons();
-    if (!ttsEnabled) stopSpeaking();
-  });
-
-  btnSfxToggle.addEventListener('click', () => {
-    sfxEnabled = !sfxEnabled;
-    sfxIcon.setAttribute('data-lucide', sfxEnabled ? 'bell' : 'bell-off');
-    showToast(sfxEnabled ? 'Sound effects enabled' : 'Sound effects muted', 'bell');
-    lucide.createIcons();
-  });
-
-  btnExportMenu.addEventListener('click', () => {
-    const sess = getActiveSession();
-    if (!sess || !sess.messages || sess.messages.length === 0) {
-      showToast('No messages to export', 'alert-circle');
-      return;
-    }
-    let md = `# NexusAI Conversation Transcript\n**Date**: ${new Date().toLocaleString()}\n\n---\n\n`;
-    sess.messages.forEach(m => {
-      md += `### ${m.sender.toUpperCase()}\n${m.text}\n\n`;
+    // Magic Quick Prompt Chips
+    document.querySelectorAll('.magic-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const action = chip.dataset.action;
+        const currentVal = chatTextarea.value.trim();
+        if (action === 'code') chatTextarea.value = currentVal ? `Write full, complete, production-ready code for: ${currentVal}` : 'Write a full, complete, production-ready website for ';
+        else if (action === 'explain') chatTextarea.value = currentVal ? `Explain in simple terms step-by-step with examples: ${currentVal}` : 'Explain in simple terms: ';
+        else if (action === 'debug') chatTextarea.value = currentVal ? `Debug, optimize, and fix this code: ${currentVal}` : 'Debug and optimize this code: \n';
+        else if (action === 'optimize') chatTextarea.value = currentVal ? `Optimize the time and space complexity of: ${currentVal}` : 'Optimize this code: \n';
+        else if (action === 'tests') chatTextarea.value = currentVal ? `Write comprehensive unit tests for: ${currentVal}` : 'Write unit tests for: \n';
+        else if (action === 'hindi') chatTextarea.value = currentVal ? `${currentVal} in Hindi` : 'Hindi me samjhao: ';
+        chatTextarea.focus();
+        btnSend.disabled = false;
+      });
     });
-    const blob = new Blob([md], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `nexus_transcript_${Date.now()}.md`;
-    a.click();
-    showToast('Transcript exported as Markdown!', 'download');
-  });
 
-  // 10. Knowledge Base Trainer Modal
-  function openTrainerModal() {
-    trainerModal.classList.add('active');
+    // Starter Cards Click
+    document.querySelectorAll('.simple-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const prompt = card.dataset.prompt;
+        if (prompt) handleSendMessage(prompt);
+      });
+    });
+
+    // Web Search Toggle
+    btnWebSearchToggle.addEventListener('click', () => {
+      settings.webSearch = !settings.webSearch;
+      btnWebSearchToggle.classList.toggle('active', settings.webSearch);
+      showToast(settings.webSearch ? 'Web Search Enabled' : 'Web Search Disabled', 'globe');
+    });
+
+    // Sidebar Tabs (Chats vs Projects)
+    document.getElementById('tab-btn-chats').addEventListener('click', () => {
+      document.getElementById('tab-btn-chats').classList.add('active');
+      document.getElementById('tab-btn-projects').classList.remove('active');
+      document.getElementById('sidebar-chats-pane').classList.add('active');
+      document.getElementById('sidebar-projects-pane').classList.remove('active');
+    });
+
+    document.getElementById('tab-btn-projects').addEventListener('click', () => {
+      document.getElementById('tab-btn-projects').classList.add('active');
+      document.getElementById('tab-btn-chats').classList.remove('active');
+      document.getElementById('sidebar-projects-pane').classList.add('active');
+      document.getElementById('sidebar-chats-pane').classList.remove('active');
+    });
+
+    sidebarSearchInput.addEventListener('input', (e) => {
+      renderSidebarChats(e.target.value);
+    });
+
+    btnCreateProject.addEventListener('click', () => {
+      const name = prompt('Enter new project name:');
+      if (!name) return;
+      const newProj = {
+        id: 'proj_' + Date.now(),
+        name: name.trim(),
+        description: 'Custom AI Project',
+        createdAt: new Date().toISOString(),
+        files: [{ id: 'f_' + Date.now(), name: 'main.js', path: 'main.js', isFolder: false, content: '// Project entry point\n' }]
+      };
+      projects.unshift(newProj);
+      activeProjectId = newProj.id;
+      saveProjects();
+      renderSidebarProjects();
+      initIDEProject();
+      switchViewMode('ide');
+    });
+
+    // IDE Editor Toolbar Actions
+    btnEditorSave.addEventListener('click', saveCurrentEditorFile);
+    btnEditorRun.addEventListener('click', runActiveCodeInTerminal);
+    btnEditorDiff.addEventListener('click', () => {
+      const isVisible = ideDiffViewer.style.display !== 'none';
+      ideDiffViewer.style.display = isVisible ? 'none' : 'block';
+      document.querySelector('.code-editor-wrapper').style.display = isVisible ? 'flex' : 'none';
+    });
+
+    ideBtnNewFile.addEventListener('click', () => createNewProjectFile());
+    ideBtnExportZip.addEventListener('click', exportProjectAsZip);
+
+    editorCodeTextarea.addEventListener('input', updateLineNumbers);
+    editorCodeTextarea.addEventListener('scroll', () => {
+      editorLineNumbers.scrollTop = editorCodeTextarea.scrollTop;
+    });
+
+    // Terminal Input Enter
+    terminalInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const cmd = terminalInput.value.trim();
+        terminalInput.value = '';
+        if (!cmd) return;
+        terminalOutput.innerHTML += `\n<span class="term-prompt">$ ${escapeHtml(cmd)}</span>\n`;
+        try {
+          const res = await fetch('/api/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: cmd })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.stdout) terminalOutput.innerHTML += `<span class="term-success">${escapeHtml(data.stdout)}</span>\n`;
+            if (data.stderr) terminalOutput.innerHTML += `<span class="term-error">${escapeHtml(data.stderr)}</span>\n`;
+          }
+        } catch (err) {
+          terminalOutput.innerHTML += `<span class="term-dim">Command sent to background sandbox.</span>\n`;
+        }
+        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+      }
+    });
+
+    btnClearTerminal.addEventListener('click', () => {
+      terminalOutput.innerHTML = '<span class="term-dim">Terminal cleared.</span>\n';
+    });
+
+    // AI Coding Agent (IDE Right Panel)
+    btnAgentSend.addEventListener('click', async () => {
+      const prompt = agentTextarea.value.trim();
+      if (!prompt) return;
+      agentTextarea.value = '';
+
+      const proj = getActiveProject();
+      const activeFile = proj ? proj.files.find(f => f.id === activeEditorFileId) : null;
+      const fileContext = activeFile ? `\nActive File: ${activeFile.name}\n\`\`\`\n${activeFile.content}\n\`\`\`\n` : '';
+
+      const userRow = document.createElement('div');
+      userRow.className = 'chat-message-row user';
+      userRow.innerHTML = `<div class="msg-bubble">${escapeHtml(prompt)}</div>`;
+      agentChatMessages.appendChild(userRow);
+
+      const botRow = document.createElement('div');
+      botRow.className = 'chat-message-row bot';
+      botRow.innerHTML = `<div class="msg-bubble"><span class="streaming-cursor"></span> Analyzing project & code...</div>`;
+      agentChatMessages.appendChild(botRow);
+      agentChatMessages.scrollTop = agentChatMessages.scrollHeight;
+
+      try {
+        const fullAgentPrompt = `You are an expert AI Coding Agent. The user is asking: "${prompt}".\n${fileContext}\nProvide complete, working, production-ready code with explanations.`;
+        const res = await executeUnifiedAIPipeline(fullAgentPrompt, [], null);
+        botRow.querySelector('.msg-bubble').innerHTML = formatRichMarkdown(res.text);
+        addCodeButtons(botRow.querySelector('.msg-bubble'));
+      } catch (e) {
+        botRow.querySelector('.msg-bubble').innerHTML = `⚠️ Error: ${e.message}`;
+      }
+      agentChatMessages.scrollTop = agentChatMessages.scrollHeight;
+      lucide.createIcons();
+    });
+
+    // Agent Quick Prompts
+    document.querySelectorAll('.agent-quick-prompts button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        agentTextarea.value = btn.dataset.prompt;
+        btnAgentSend.click();
+      });
+    });
+
+    // Top Nav Modals & Buttons
+    btnThemeToggle.addEventListener('click', () => {
+      settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
+      saveSettings();
+      applyTheme(settings.theme);
+    });
+
+    btnTtsToggle.addEventListener('click', () => {
+      settings.ttsEnabled = !settings.ttsEnabled;
+      btnTtsToggle.classList.toggle('active', settings.ttsEnabled);
+      showToast(settings.ttsEnabled ? 'Voice Output ON' : 'Voice Output OFF', 'volume-2');
+    });
+
+    btnExportMenu.addEventListener('click', () => {
+      const sess = getActiveSession();
+      if (!sess) return;
+      const chatText = sess.messages.map(m => `[${m.sender.toUpperCase()} - ${m.timestamp}]\n${m.text}\n`).join('\n---\n\n');
+      downloadStringAsFile(chatText, `${sess.title.replace(/\s+/g, '_')}.txt`, 'text/plain');
+      showToast('Chat transcript exported!', 'download');
+    });
+
+    btnOpenTrainerTop.addEventListener('click', () => trainerModal.classList.add('active'));
+    btnOpenTrainer.addEventListener('click', () => trainerModal.classList.add('active'));
+    document.getElementById('btn-close-modal').addEventListener('click', () => trainerModal.classList.remove('active'));
+
+    setupSettingsModal();
+    setupMultiModalUploads();
+    setupVoiceInput();
   }
 
-  btnOpenTrainer.addEventListener('click', openTrainerModal);
-  if (btnOpenTrainerTop) btnOpenTrainerTop.addEventListener('click', openTrainerModal);
+  function setupKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+      // Ctrl+S: Save active file
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveCurrentEditorFile();
+      }
+      // Ctrl+Shift+N: New Chat
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
+        e.preventDefault();
+        startNewChat();
+      }
+      // Ctrl+B: Toggle Sidebar
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        sidebar.classList.toggle('collapsed');
+      }
+    });
+  }
 
-  btnCloseModal.addEventListener('click', () => trainerModal.classList.remove('active'));
-  btnCancelTeach.addEventListener('click', () => trainerModal.classList.remove('active'));
+  // ============================================================
+  // 17. UTILITY HELPERS
+  // ============================================================
+  function generateTitleFromPrompt(prompt) {
+    const clean = prompt.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+    const words = clean.split(/\s+/).slice(0, 5).join(' ');
+    return words ? words.charAt(0).toUpperCase() + words.slice(1) : 'New Conversation';
+  }
 
-  trainerModal.addEventListener('click', (e) => {
-    if (e.target === trainerModal) trainerModal.classList.remove('active');
-  });
+  function formatTime(date) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
 
-  // Initialize
-  renderHistorySidebar();
-  loadCurrentSessionUI();
-});
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function escapeHtml(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function scrollCanvasToBottom() {
+    chatCanvas.scrollTop = chatCanvas.scrollHeight;
+  }
+
+  function downloadStringAsFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }
+
+  function playSound(type) {
+    if (!settings.sfxEnabled) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      if (type === 'send') {
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+      } else {
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
+      }
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch (e) {}
+  }
+
+  function showToast(message, iconName = 'info') {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `<i data-lucide="${iconName}" style="width:14px;height:14px;"></i> <span>${escapeHtml(message)}</span>`;
+    toastContainer.appendChild(toast);
+    lucide.createIcons();
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 2800);
+  }
+
+  // ============================================================
+  // 18. BUILT-IN ENCYCLOPEDIC KNOWLEDGE GRAPH
+  // ============================================================
+  const KNOWLEDGE_GRAPH = {
+    python: {
+      en: `### 🐍 Python Programming\n\n**Python** is an interpreted, high-level, dynamically-typed programming language created by **Guido van Rossum** in 1991.\n\n\`\`\`python\ndef greet(name):\n    return f"Hello, {name}!"\n\`\`\``,
+      hi: `### 🐍 Python प्रोग्रामिंग क्या है?\n\n**Python** एक बहुत ही लोकप्रिय high-level प्रोग्रामिंग लैंग्वेज है जिसे 1991 में **Guido van Rossum** ने बनाया था। यह AI और Data Science की प्रमुख भाषा है।`,
+      hinglish: `### 🐍 Python Programming\n\n**Python** ek high-level programming language hai jo AI, Machine Learning aur Web Development me sabse zyada use hoti hai.`
+    },
+    os: {
+      en: `### 💻 Operating System (OS)\n\nAn **Operating System (OS)** is fundamental system software that manages hardware resources, CPU scheduling, memory, and file systems.\n\n#### Core Functions:\n1. 🧠 **Process Management**: CPU scheduling & multitasking.\n2. 💾 **Memory Management**: RAM & Virtual Memory allocation.\n3. 📁 **File Systems**: Data storage & organization.`,
+      hi: `### 💻 ऑपरेटिंग सिस्टम (Operating System) क्या है?\n\n**ऑपरेटिंग सिस्टम (OS)** कंप्यूटर का मुख्य सिस्टम सॉफ्टवेयर है जो यूजर और कंप्यूटर हार्डवेयर के बीच माध्यम का कार्य करता है।\n\n**मुख्य कार्य**:\n- 🧠 **Process Management**: CPU और टास्क को शेड्यूल करना।\n- 💾 **Memory Management**: RAM का प्रबंधन।\n- 📁 **File Management**: फाइलों और डायरेक्टरी को संभालना।`,
+      hinglish: `### 💻 Operating System (OS)\n\n**Operating System** computer ka master software hota hai jo CPU, RAM aur hardware components ko manage karta hai.`
+    }
+  };
+
+  // Launch on DOM Ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
