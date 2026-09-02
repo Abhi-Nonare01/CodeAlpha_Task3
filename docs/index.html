@@ -3,29 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NexusAI Pro - AI Assistant & Coding Agent</title>
+  <title>NexusAI - AI Assistant</title>
   
   <!-- Modern Antigravity / Google AI Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- Highlight.js for Code Highlighting -->
+  <!-- Highlight.js -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-  <!-- KaTeX for LaTeX Math Formula Rendering -->
+  <!-- KaTeX for Math LaTeX Formulas -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
 
-  <!-- Marked.js for Markdown -->
+  <!-- Marked.js -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   
-  <!-- JSZip for Project ZIP Exports -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
-  <!-- PDF.js for Client-Side Document Parsing -->
+  <!-- PDF.js for File Parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   
   <!-- Puter.js Free AI Engine (GPT-4o-mini & Claude) -->
@@ -39,13 +36,13 @@
 <body class="theme-dark">
   <div class="app-layout">
     
-    <!-- Left Sidebar -->
+    <!-- Left Sidebar (Clean & Sleek) -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-brand">
           <div class="brand-avatar">🤖</div>
           <div class="brand-text">
-            <h2>NexusAI <span class="badge-pro">PRO</span></h2>
+            <h2>NexusAI</h2>
           </div>
         </div>
       </div>
@@ -57,61 +54,15 @@
         </button>
       </div>
 
-      <!-- Sidebar Mode Tabs: Chats vs Projects -->
-      <div class="sidebar-tabs">
-        <button class="sidebar-tab active" id="tab-btn-chats" data-pane="sidebar-chats-pane">
-          <i data-lucide="message-square"></i> Chats
-        </button>
-        <button class="sidebar-tab" id="tab-btn-projects" data-pane="sidebar-projects-pane">
-          <i data-lucide="folder-git-2"></i> Projects
-        </button>
+      <div class="sidebar-section-header">
+        <span>Recent Chats</span>
       </div>
-
-      <!-- Search Input -->
-      <div class="sidebar-search-box">
-        <i data-lucide="search"></i>
-        <input type="text" id="sidebar-search-input" placeholder="Search chats or files...">
-      </div>
-
-      <!-- Pane 1: Conversations List -->
-      <div class="sidebar-pane active" id="sidebar-chats-pane">
-        <!-- Pinned Chats Section -->
-        <div class="sidebar-section-header" id="pinned-header" style="display:none;">
-          <span>📌 Pinned Chats</span>
-        </div>
-        <div class="chat-history-list pinned-list" id="pinned-history-list"></div>
-
-        <!-- Recent Chats Section -->
-        <div class="sidebar-section-header">
-          <span>Recent Chats</span>
-        </div>
-        <div class="chat-history-list" id="chat-history-list"></div>
-
-        <!-- Archived Section -->
-        <div class="sidebar-section-header" id="archived-header" style="display:none;">
-          <span>📦 Archived</span>
-        </div>
-        <div class="chat-history-list archived-list" id="archived-history-list"></div>
-      </div>
-
-      <!-- Pane 2: Projects List -->
-      <div class="sidebar-pane" id="sidebar-projects-pane">
-        <div class="project-actions-bar">
-          <button class="btn btn-sm btn-outline" id="btn-create-project">
-            <i data-lucide="folder-plus"></i> New Project
-          </button>
-        </div>
-        <div class="projects-list" id="projects-list"></div>
-      </div>
+      <div class="chat-history-list" id="chat-history-list"></div>
 
       <div class="sidebar-footer">
         <button class="sidebar-btn" id="btn-open-trainer">
           <i data-lucide="book-open"></i>
           <span>FAQ Knowledge Base</span>
-        </button>
-        <button class="sidebar-btn" id="btn-open-settings">
-          <i data-lucide="settings"></i>
-          <span>Settings</span>
         </button>
         <button class="sidebar-btn" id="btn-clear-history">
           <i data-lucide="trash-2"></i>
@@ -120,41 +71,21 @@
       </div>
     </aside>
 
-    <!-- Main Workspace Area -->
+    <!-- Main Chat View -->
     <main class="main-content">
       
-      <!-- Top Navbar -->
+      <!-- Top Navbar (Clean, Minimalist & Balanced) -->
       <header class="top-nav">
         <div class="nav-left">
           <button class="icon-btn" id="sidebar-toggle-btn" title="Toggle Sidebar">
             <i data-lucide="panel-left"></i>
           </button>
-
-          <!-- View Mode Switcher: Chat Mode vs IDE Workspace -->
-          <div class="view-mode-pill">
-            <button class="mode-btn active" id="btn-mode-chat" title="ChatGPT Full Conversation Mode">
-              <i data-lucide="messages-square"></i>
-              <span>Chat</span>
-            </button>
-            <button class="mode-btn" id="btn-mode-ide" title="3-Panel AI Coding IDE Workspace">
-              <i data-lucide="code-2"></i>
-              <span>Coding Workspace</span>
-            </button>
-          </div>
-
-          <div class="active-project-pill" id="active-project-pill" style="display:none;">
-            <i data-lucide="folder"></i>
-            <span id="active-project-name">My Project</span>
+          <div class="header-brand-title">
+            <span class="header-name">NexusAI</span>
           </div>
         </div>
 
         <div class="nav-right">
-          <!-- Web Search Toggle Pill -->
-          <button class="header-toggle-pill" id="btn-web-search-toggle" title="Toggle Real-Time Web Knowledge">
-            <i data-lucide="globe"></i>
-            <span>Web Search</span>
-          </button>
-
           <!-- AI Model Selector Pill -->
           <div class="model-selector-wrap">
             <select id="model-select" class="lang-select" title="AI Model Engine">
@@ -162,7 +93,6 @@
               <option value="claude">🧠 Claude 3.5 (Deep Logic)</option>
               <option value="coder">💻 Code Architect (1000+ Lines)</option>
               <option value="multilingual">🌐 Bhasha AI (Hindi/English)</option>
-              <option value="custom">⚙️ Custom API Key / Provider</option>
             </select>
           </div>
 
@@ -198,324 +128,94 @@
         </div>
       </header>
 
-      <!-- ======================================================= -->
-      <!-- VIEW 1: FULL CHAT VIEW (ChatGPT-Style) -->
-      <!-- ======================================================= -->
-      <div class="view-container active" id="chat-view-container">
-        <!-- Scrollable Message Canvas -->
-        <div class="chat-canvas" id="chat-canvas">
-          
-          <!-- Clean, Minimalist Welcome Hero -->
-          <div class="welcome-hero" id="welcome-hero">
-            <div class="hero-avatar">
-              <span class="hero-emoji">🤖</span>
-            </div>
-
-            <h2 id="greeting-text">How can I help you today?</h2>
-
-            <!-- 4 Simple, Clean Starter Cards -->
-            <div class="simple-starter-grid">
-              <div class="simple-card" data-prompt="Build a full-featured responsive To-Do Web Application in HTML, CSS, and JavaScript with localStorage">
-                <span class="card-emoji">💻</span>
-                <span class="card-label">Build Full-Stack App</span>
-              </div>
-
-              <div class="simple-card" data-prompt="What is Operating System? Explain process scheduling, virtual memory, and core architecture">
-                <span class="card-emoji">🧠</span>
-                <span class="card-label">Computer Science & OS</span>
-              </div>
-
-              <div class="simple-card" data-prompt="Write a Python CLI program for a full scientific calculator with menu and error handling">
-                <span class="card-emoji">🐍</span>
-                <span class="card-label">Python Coding</span>
-              </div>
-
-              <div class="simple-card" data-prompt="Explain Einstein's Mass-Energy Equivalence $E = mc^2$ and solve a step-by-step physics equation">
-                <span class="card-emoji">📐</span>
-                <span class="card-label">Math & LaTeX Science</span>
-              </div>
-            </div>
+      <!-- Scrollable Message Canvas -->
+      <div class="chat-canvas" id="chat-canvas">
+        
+        <!-- Clean, Minimalist Welcome Hero -->
+        <div class="welcome-hero" id="welcome-hero">
+          <div class="hero-avatar">
+            <span class="hero-emoji">🤖</span>
           </div>
 
-          <!-- Chat Messages Stream -->
-          <div class="messages-container" id="messages-container"></div>
-          <div id="scroll-anchor"></div>
-        </div>
+          <h2 id="greeting-text">How can I help you today?</h2>
 
-        <!-- Floating Minimalist Input Bar with Multi-Modal & Magic Chips -->
-        <div class="input-container-wrap">
-          <!-- Magic AI Quick Action Chips -->
-          <div class="magic-chips-row">
-            <button class="magic-chip" data-action="code">💻 Full Code</button>
-            <button class="magic-chip" data-action="explain">🔍 Explain Simply</button>
-            <button class="magic-chip" data-action="debug">🐛 Debug & Fix</button>
-            <button class="magic-chip" data-action="optimize">⚡ Optimize</button>
-            <button class="magic-chip" data-action="tests">🧪 Write Tests</button>
-            <button class="magic-chip" data-action="hindi">🇮🇳 In Hindi</button>
-          </div>
+          <!-- 4 Simple, Clean Starter Cards -->
+          <div class="simple-starter-grid">
+            <div class="simple-card" data-prompt="Build a full-featured responsive To-Do Web Application in HTML, CSS, and JavaScript with localStorage">
+              <span class="card-emoji">💻</span>
+              <span class="card-label">Build Full-Stack App</span>
+            </div>
 
-          <!-- Multi-Modal File Attachment Previews -->
-          <div class="attachment-preview-strip" id="attachment-preview-strip" style="display:none;"></div>
+            <div class="simple-card" data-prompt="What is Operating System? Explain process scheduling, virtual memory, and core architecture">
+              <span class="card-emoji">🧠</span>
+              <span class="card-label">Computer Science & OS</span>
+            </div>
 
-          <div class="chat-input-card" id="chat-dropzone">
-            <!-- File Upload Hidden Input -->
-            <input type="file" id="file-upload-input" multiple accept=".txt,.pdf,.csv,.json,.js,.ts,.html,.css,.java,.py,.cpp,.c,.sql,.xml,.md,.png,.jpg,.jpeg,.webp" style="display:none;">
+            <div class="simple-card" data-prompt="Write a Python CLI program for a full scientific calculator with menu and error handling">
+              <span class="card-emoji">🐍</span>
+              <span class="card-label">Python Coding</span>
+            </div>
 
-            <!-- Attachment Button (Paperclip) -->
-            <button class="icon-btn attach-btn" id="btn-attach-file" title="Upload documents, code, or images (PDF, TXT, CSV, JSON, PNG)">
-              <i data-lucide="paperclip"></i>
-            </button>
-
-            <textarea 
-              id="chat-textarea" 
-              rows="1" 
-              placeholder="Ask me anything in the universe or drag & drop files..." 
-              autocomplete="off"
-            ></textarea>
-
-            <div class="input-controls-right">
-              <!-- Voice Mic -->
-              <button class="icon-btn voice-btn" id="btn-voice-input" title="Voice Input">
-                <i data-lucide="mic" id="mic-icon"></i>
-              </button>
-
-              <!-- Send / Stop Generation Button -->
-              <button class="send-round-btn" id="btn-send" title="Send message" disabled>
-                <i data-lucide="arrow-up" id="send-btn-icon"></i>
-              </button>
+            <div class="simple-card" data-prompt="Explain Einstein's Mass-Energy Equivalence $E = mc^2$ and solve a step-by-step physics equation">
+              <span class="card-emoji">📐</span>
+              <span class="card-label">Math & LaTeX Science</span>
             </div>
           </div>
         </div>
+
+        <!-- Chat Messages Stream -->
+        <div class="messages-container" id="messages-container"></div>
+        <div id="scroll-anchor"></div>
       </div>
 
-      <!-- ======================================================= -->
-      <!-- VIEW 2: 3-PANEL AI CODING IDE WORKSPACE -->
-      <!-- ======================================================= -->
-      <div class="view-container" id="ide-view-container">
-        <div class="ide-workspace-layout">
-          
-          <!-- LEFT PANEL: File Explorer -->
-          <div class="ide-panel ide-panel-left" id="ide-explorer-panel">
-            <div class="ide-panel-header">
-              <span class="panel-title"><i data-lucide="folder-tree"></i> Explorer</span>
-              <div class="panel-actions">
-                <button class="icon-btn-sm" id="ide-btn-new-file" title="New File"><i data-lucide="file-plus"></i></button>
-                <button class="icon-btn-sm" id="ide-btn-new-folder" title="New Folder"><i data-lucide="folder-plus"></i></button>
-                <button class="icon-btn-sm" id="ide-btn-upload-file" title="Upload File to Project"><i data-lucide="upload"></i></button>
-                <button class="icon-btn-sm" id="ide-btn-export-zip" title="Download Project as ZIP"><i data-lucide="download-cloud"></i></button>
-              </div>
-            </div>
-            <div class="ide-file-tree" id="ide-file-tree"></div>
+      <!-- Floating Minimalist Input Bar with Magic Action Chips -->
+      <div class="input-container-wrap">
+        <!-- Magic AI Quick Action Chips -->
+        <div class="magic-chips-row">
+          <button class="magic-chip" data-action="code">💻 Full Code</button>
+          <button class="magic-chip" data-action="explain">🔍 Explain Simply</button>
+          <button class="magic-chip" data-action="debug">🐛 Debug & Fix</button>
+          <button class="magic-chip" data-action="optimize">⚡ Optimize</button>
+          <button class="magic-chip" data-action="hindi">🇮🇳 In Hindi</button>
+        </div>
+
+        <!-- Attachment Previews Strip -->
+        <div class="attachment-preview-strip" id="attachment-preview-strip" style="display:none;"></div>
+
+        <div class="chat-input-card" id="chat-dropzone">
+          <!-- File Upload Hidden Input -->
+          <input type="file" id="file-upload-input" multiple accept=".txt,.pdf,.csv,.json,.js,.ts,.html,.css,.java,.py,.cpp,.c,.sql,.xml,.md,.png,.jpg,.jpeg,.webp" style="display:none;">
+
+          <!-- Attachment Paperclip Button -->
+          <button class="icon-btn attach-btn" id="btn-attach-file" title="Upload document, code, or image">
+            <i data-lucide="paperclip"></i>
+          </button>
+
+          <textarea 
+            id="chat-textarea" 
+            rows="1" 
+            placeholder="Ask me anything in the universe or drag & drop files..." 
+            autocomplete="off"
+          ></textarea>
+
+          <div class="input-controls-right">
+            <!-- Voice Mic -->
+            <button class="icon-btn voice-btn" id="btn-voice-input" title="Voice Input">
+              <i data-lucide="mic" id="mic-icon"></i>
+            </button>
+
+            <!-- Send Button -->
+            <button class="send-round-btn" id="btn-send" title="Send message" disabled>
+              <i data-lucide="arrow-up" id="send-btn-icon"></i>
+            </button>
           </div>
-
-          <!-- CENTER PANEL: Tabbed Code Editor & Diff Viewer -->
-          <div class="ide-panel ide-panel-center" id="ide-editor-panel">
-            <!-- Tabs Bar -->
-            <div class="ide-tab-bar" id="ide-tab-bar"></div>
-
-            <!-- Editor Action Toolbar -->
-            <div class="ide-editor-toolbar">
-              <span class="editor-file-path" id="editor-active-filepath">No file open</span>
-              <div class="editor-toolbar-actions">
-                <button class="btn-tool" id="btn-editor-save" title="Save File (Ctrl+S)"><i data-lucide="save"></i> Save</button>
-                <button class="btn-tool" id="btn-editor-format" title="Format Code"><i data-lucide="align-left"></i> Format</button>
-                <button class="btn-tool btn-run-accent" id="btn-editor-run" title="Run Code in Sandbox"><i data-lucide="play"></i> Run</button>
-                <button class="btn-tool" id="btn-editor-diff" title="Toggle Diff View"><i data-lucide="git-compare"></i> Diff</button>
-              </div>
-            </div>
-
-            <!-- Editor Container -->
-            <div class="ide-editor-body" id="ide-editor-body">
-              <div class="code-editor-wrapper">
-                <div class="line-numbers" id="editor-line-numbers">1</div>
-                <textarea class="code-textarea" id="editor-code-textarea" spellcheck="false" placeholder="// Select or create a file from the explorer..."></textarea>
-              </div>
-              <div class="diff-viewer-wrapper" id="ide-diff-viewer" style="display:none;"></div>
-            </div>
-
-            <!-- BOTTOM PANEL: Terminal / Output Console -->
-            <div class="ide-panel-bottom" id="ide-bottom-panel">
-              <div class="bottom-panel-header">
-                <div class="bottom-tabs">
-                  <button class="bottom-tab active" data-pane="tab-terminal"><i data-lucide="terminal"></i> Terminal / Output</button>
-                  <button class="bottom-tab" data-pane="tab-problems"><i data-lucide="alert-circle"></i> Problems (<span id="problems-count">0</span>)</button>
-                  <button class="bottom-tab" data-pane="tab-tests"><i data-lucide="check-circle-2"></i> Tests</button>
-                </div>
-                <div class="bottom-actions">
-                  <button class="icon-btn-sm" id="btn-clear-terminal" title="Clear Console"><i data-lucide="trash-2"></i></button>
-                </div>
-              </div>
-              <div class="bottom-panel-content">
-                <div class="bottom-pane active" id="tab-terminal">
-                  <div class="terminal-output" id="terminal-output">
-                    <span class="term-dim">NexusAI Execution Sandbox v1.0.0 Ready. Type commands or press 'Run'.</span>
-                  </div>
-                  <div class="terminal-input-row">
-                    <span class="term-prompt">$</span>
-                    <input type="text" id="terminal-input" placeholder="node script.js, python test.py, or shell command...">
-                  </div>
-                </div>
-                <div class="bottom-pane" id="tab-problems">
-                  <div class="problems-list" id="problems-list">
-                    <span class="term-dim">No problems detected in current files.</span>
-                  </div>
-                </div>
-                <div class="bottom-pane" id="tab-tests">
-                  <div class="test-results" id="test-results">
-                    <span class="term-dim">Run tests to see validation results here.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- RIGHT PANEL: AI Coding Agent -->
-          <div class="ide-panel ide-panel-right" id="ide-agent-panel">
-            <div class="ide-panel-header">
-              <span class="panel-title"><i data-lucide="bot"></i> AI Coding Agent</span>
-              <button class="icon-btn-sm" id="btn-clear-agent-chat" title="Clear Agent Chat"><i data-lucide="trash-2"></i></button>
-            </div>
-            
-            <div class="agent-chat-messages" id="agent-chat-messages">
-              <div class="agent-welcome-card">
-                <div class="agent-badge">⚡ Context Aware</div>
-                <p>I can inspect your project files, implement features, find bugs, and apply code diffs directly into your editor.</p>
-                <div class="agent-quick-prompts">
-                  <button class="btn-chip-sm" data-prompt="Explain this active file in detail">Explain File</button>
-                  <button class="btn-chip-sm" data-prompt="Find potential bugs, security issues, and edge cases in this code">Find Bugs</button>
-                  <button class="btn-chip-sm" data-prompt="Refactor and optimize this code for production">Refactor</button>
-                  <button class="btn-chip-sm" data-prompt="Write comprehensive unit tests for this code">Write Tests</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Agent Tool Call Status Card -->
-            <div class="agent-tool-status" id="agent-tool-status" style="display:none;"></div>
-
-            <div class="agent-input-wrap">
-              <textarea id="agent-textarea" rows="2" placeholder="Ask AI to modify, fix, or write code..."></textarea>
-              <button class="btn btn-sm btn-primary-gradient" id="btn-agent-send">
-                <i data-lucide="sparkles"></i> Generate
-              </button>
-            </div>
-          </div>
-
         </div>
       </div>
 
     </main>
   </div>
 
-  <!-- ======================================================= -->
-  <!-- MODAL 1: SETTINGS MODAL -->
-  <!-- ======================================================= -->
-  <div class="modal-overlay" id="settings-modal">
-    <div class="modal-card" style="max-width: 680px;">
-      <div class="modal-top">
-        <div class="modal-title-group">
-          <div class="modal-badge-icon">⚙️</div>
-          <div>
-            <h3>Settings & Preferences</h3>
-            <p>Configure AI models, API keys, appearance, and execution</p>
-          </div>
-        </div>
-        <button class="icon-btn modal-close" id="btn-close-settings"><i data-lucide="x"></i></button>
-      </div>
-
-      <div class="modal-nav-tabs">
-        <button class="modal-tab active" data-tab="settings-ai-tab"><i data-lucide="cpu"></i> AI & Models</button>
-        <button class="modal-tab" data-tab="settings-ui-tab"><i data-lucide="palette"></i> Appearance</button>
-        <button class="modal-tab" data-tab="settings-voice-tab"><i data-lucide="volume-2"></i> Voice & Chat</button>
-        <button class="modal-tab" data-tab="settings-data-tab"><i data-lucide="database"></i> Data & Storage</button>
-      </div>
-
-      <div class="modal-content-body">
-        <!-- Tab 1: AI & Models -->
-        <div class="tab-pane active" id="settings-ai-tab">
-          <div class="form-field">
-            <label>AI Provider / Endpoint:</label>
-            <select id="setting-provider" class="form-input">
-              <option value="puter">Puter.js (Free Built-in GPT-4o-mini & Claude)</option>
-              <option value="custom_openai">Custom OpenAI-Compatible API (OpenAI / Groq / OpenRouter)</option>
-              <option value="ollama">Local Ollama Server (http://localhost:11434)</option>
-            </select>
-          </div>
-          <div class="form-field" id="setting-custom-key-row" style="display:none;">
-            <label>API Key (Stored locally in your browser):</label>
-            <input type="password" id="setting-api-key" placeholder="sk-..." class="form-input">
-          </div>
-          <div class="form-field" id="setting-custom-endpoint-row" style="display:none;">
-            <label>Custom Base URL:</label>
-            <input type="text" id="setting-api-endpoint" placeholder="https://api.openai.com/v1" class="form-input">
-          </div>
-          <div class="form-row">
-            <div class="form-field">
-              <label>Temperature (Creativity): <span id="temp-val-display">0.7</span></label>
-              <input type="range" id="setting-temperature" min="0" max="1" step="0.05" value="0.7">
-            </div>
-            <div class="form-field">
-              <label>Max Output Tokens:</label>
-              <input type="number" id="setting-max-tokens" value="2048" class="form-input">
-            </div>
-          </div>
-          <div class="form-field">
-            <label>System Instructions (Custom Personality):</label>
-            <textarea id="setting-system-prompt" rows="3" class="form-input" placeholder="You are NexusAI, an expert full-stack AI engineer and versatile assistant..."></textarea>
-          </div>
-        </div>
-
-        <!-- Tab 2: Appearance -->
-        <div class="tab-pane" id="settings-ui-tab">
-          <div class="form-field">
-            <label>Theme Mode:</label>
-            <select id="setting-theme" class="form-input">
-              <option value="dark">Obsidian Dark (Default)</option>
-              <option value="light">Clean Modern Light</option>
-            </select>
-          </div>
-          <div class="form-field">
-            <label>Editor Font Size:</label>
-            <select id="setting-font-size" class="form-input">
-              <option value="13px">Small (13px)</option>
-              <option value="14px" selected>Medium (14px)</option>
-              <option value="16px">Large (16px)</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Tab 3: Voice & Chat -->
-        <div class="tab-pane" id="settings-voice-tab">
-          <div class="form-field">
-            <label>Speech Synthesis (TTS) Voice:</label>
-            <select id="setting-tts-voice" class="form-input"></select>
-          </div>
-          <div class="form-field">
-            <label><input type="checkbox" id="setting-enter-send" checked> Press Enter to Send (Shift+Enter for newline)</label>
-          </div>
-          <div class="form-field">
-            <label><input type="checkbox" id="setting-autoscroll" checked> Auto-scroll to bottom during generation</label>
-          </div>
-        </div>
-
-        <!-- Tab 4: Data & Storage -->
-        <div class="tab-pane" id="settings-data-tab">
-          <p class="term-dim">Manage your persistent conversations and projects stored locally in your browser.</p>
-          <div class="settings-btn-group" style="margin-top:15px; display:flex; gap:10px;">
-            <button class="btn btn-outline" id="btn-export-all-data"><i data-lucide="download"></i> Export All Chats (JSON)</button>
-            <button class="btn btn-danger-outline" id="btn-reset-all-data"><i data-lucide="trash-2"></i> Reset Application Data</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-footer-btns">
-        <button class="btn btn-primary-gradient" id="btn-save-settings">Save Changes</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ======================================================= -->
-  <!-- MODAL 2: FAQ TRAINER MODAL -->
-  <!-- ======================================================= -->
+  <!-- FAQ Knowledge Base & Model Trainer Modal -->
   <div class="modal-overlay" id="trainer-modal">
     <div class="modal-card">
       <div class="modal-top">
@@ -539,6 +239,7 @@
       </div>
 
       <div class="modal-content-body">
+        <!-- Tab 1: List -->
         <div class="tab-pane active" id="kb-list-view">
           <div class="kb-search-box">
             <i data-lucide="search"></i>
@@ -547,6 +248,7 @@
           <div class="kb-cards-list" id="kb-cards-list"></div>
         </div>
 
+        <!-- Tab 2: Add FAQ -->
         <div class="tab-pane" id="kb-add-view">
           <form id="teach-form" class="teach-form">
             <div class="form-row">
@@ -582,9 +284,7 @@
     </div>
   </div>
 
-  <!-- ======================================================= -->
-  <!-- MODAL 3: LIVE CODE RUNNER SANDBOX -->
-  <!-- ======================================================= -->
+  <!-- Live Interactive Code Runner Sandbox Modal -->
   <div class="modal-overlay" id="preview-modal">
     <div class="modal-card" style="max-width: 900px; height: 85vh;">
       <div class="modal-top">
