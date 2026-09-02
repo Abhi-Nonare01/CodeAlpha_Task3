@@ -14,16 +14,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-  <!-- KaTeX for Math LaTeX Formulas -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
-
   <!-- Marked.js -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  
-  <!-- PDF.js for File Parsing -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   
   <!-- Puter.js Free AI Engine (GPT-4o-mini & Claude) -->
   <script src="https://js.puter.com/v2/"></script>
@@ -36,7 +28,7 @@
 <body class="theme-dark">
   <div class="app-layout">
     
-    <!-- Left Sidebar (Clean & Sleek) -->
+    <!-- Left Sidebar -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-brand">
@@ -74,7 +66,7 @@
     <!-- Main Chat View -->
     <main class="main-content">
       
-      <!-- Top Navbar (Clean, Minimalist & Balanced) -->
+      <!-- Top Navbar (Clean & Minimalist) -->
       <header class="top-nav">
         <div class="nav-left">
           <button class="icon-btn" id="sidebar-toggle-btn" title="Toggle Sidebar">
@@ -141,24 +133,24 @@
 
           <!-- 4 Simple, Clean Starter Cards -->
           <div class="simple-starter-grid">
-            <div class="simple-card" data-prompt="Build a full-featured responsive To-Do Web Application in HTML, CSS, and JavaScript with localStorage">
-              <span class="card-emoji">💻</span>
-              <span class="card-label">Build Full-Stack App</span>
-            </div>
-
-            <div class="simple-card" data-prompt="What is Operating System? Explain process scheduling, virtual memory, and core architecture">
+            <div class="simple-card" data-prompt="What is Artificial Intelligence and how does NLP work?">
               <span class="card-emoji">🧠</span>
-              <span class="card-label">Computer Science & OS</span>
+              <span class="card-label">Explore AI & NLP</span>
             </div>
 
-            <div class="simple-card" data-prompt="Write a Python CLI program for a full scientific calculator with menu and error handling">
-              <span class="card-emoji">🐍</span>
-              <span class="card-label">Python Coding</span>
+            <div class="simple-card" data-prompt="What is the difference between HashMap and Hashtable in Java?">
+              <span class="card-emoji">☕</span>
+              <span class="card-label">Java Programming</span>
             </div>
 
-            <div class="simple-card" data-prompt="Explain Einstein's Mass-Energy Equivalence $E = mc^2$ and solve a step-by-step physics equation">
-              <span class="card-emoji">📐</span>
-              <span class="card-label">Math & LaTeX Science</span>
+            <div class="simple-card" data-prompt="calc (128 * 16) + sqrt(256) - 48">
+              <span class="card-emoji">🧮</span>
+              <span class="card-label">Math Calculator</span>
+            </div>
+
+            <div class="simple-card" data-prompt="Tell me about CodeAlfa internship tasks and submission guidelines">
+              <span class="card-emoji">💼</span>
+              <span class="card-label">CodeAlfa Internship</span>
             </div>
           </div>
         </div>
@@ -175,26 +167,14 @@
           <button class="magic-chip" data-action="code">💻 Full Code</button>
           <button class="magic-chip" data-action="explain">🔍 Explain Simply</button>
           <button class="magic-chip" data-action="debug">🐛 Debug & Fix</button>
-          <button class="magic-chip" data-action="optimize">⚡ Optimize</button>
           <button class="magic-chip" data-action="hindi">🇮🇳 In Hindi</button>
         </div>
 
-        <!-- Attachment Previews Strip -->
-        <div class="attachment-preview-strip" id="attachment-preview-strip" style="display:none;"></div>
-
-        <div class="chat-input-card" id="chat-dropzone">
-          <!-- File Upload Hidden Input -->
-          <input type="file" id="file-upload-input" multiple accept=".txt,.pdf,.csv,.json,.js,.ts,.html,.css,.java,.py,.cpp,.c,.sql,.xml,.md,.png,.jpg,.jpeg,.webp" style="display:none;">
-
-          <!-- Attachment Paperclip Button -->
-          <button class="icon-btn attach-btn" id="btn-attach-file" title="Upload document, code, or image">
-            <i data-lucide="paperclip"></i>
-          </button>
-
+        <div class="chat-input-card">
           <textarea 
             id="chat-textarea" 
             rows="1" 
-            placeholder="Ask me anything in the universe or drag & drop files..." 
+            placeholder="Ask me anything in the universe..." 
             autocomplete="off"
           ></textarea>
 
@@ -206,7 +186,7 @@
 
             <!-- Send Button -->
             <button class="send-round-btn" id="btn-send" title="Send message" disabled>
-              <i data-lucide="arrow-up" id="send-btn-icon"></i>
+              <i data-lucide="arrow-up"></i>
             </button>
           </div>
         </div>
