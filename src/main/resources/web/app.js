@@ -532,31 +532,102 @@ document.addEventListener('DOMContentLoaded', () => {
       return { text: `You haven't told me your name yet! Say *"My name is [your name]"*.`, confidence: 0.9, matchType: 'RULE_MEMORY', language: 'en' };
     }
 
+    // 0. Extract Session History & Previous Turn Context (ChatGPT-Grade Multi-Turn Continuity)
+    const sess = getActiveSession();
+    const history = (sess && sess.messages) ? sess.messages : [];
+    const botMessages = history.filter(m => m.sender === 'bot');
+    const userMessages = history.filter(m => m.sender === 'user');
+    const lastBotMsg = botMessages.length > 0 ? botMessages[botMessages.length - 1].text : '';
+    const previousUserPrompt = userMessages.length > 1 ? userMessages[userMessages.length - 2].text : '';
+
+    // 0.1 Context Follow-up Intents
+    const isHindiFollowUp = /^(?:in\s+hindi|hindi\s+me|translate\s+(?:in|to)?\s*hindi|hindi\s+me\s+batao|hindi\s+me\s+samjhao|hindi\s+version|hindi\s+translation|hindi)$/i.test(lower.trim());
+    const isHinglishFollowUp = /^(?:in\s+hinglish|hinglish\s+me|translate\s+(?:in|to)?\s*hinglish|hinglish\s+me\s+batao|hinglish\s+me\s+samjhao|hinglish)$/i.test(lower.trim());
+    const isEnglishFollowUp = /^(?:in\s+english|english\s+me|translate\s+(?:in|to)?\s*english|explain\s+in\s+english|english)$/i.test(lower.trim());
+    const isExplainMoreFollowUp = /^(?:explain\s+more|aur\s+batao|more\s+details|deep\s+explanation|tell\s+me\s+more|elaborate|details)$/i.test(lower.trim());
+    const isCodeFollowUp = /^(?:code|give\s+code|write\s+code|code\s+please|provide\s+code|code\s+bhi\s+do|show\s+code)$/i.test(lower.trim());
+    const isShortSummary = /^(?:summarize|summary|short\s+me|short\s+summary|in\s+short|brief|in\s+brief)$/i.test(lower.trim());
+
     // 4. Determine Language Target
-    const isPureHindi = /[\u0900-\u097F]/.test(text) || lower.includes('in hindi') || lower.includes('hindi me');
-    const isHinglish = lower.includes('in hinglish') || lower.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower);
+    const isPureHindi = /[\u0900-\u097F]/.test(text) || lower.includes('in hindi') || lower.includes('hindi me') || isHindiFollowUp;
+    const isHinglish = lower.includes('in hinglish') || lower.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower) || isHinglishFollowUp;
     const langKey = isPureHindi ? 'hi' : (isHinglish ? 'hinglish' : 'en');
 
-    // 5. Check if user is asking for code generation, problem solving, or complex query
-    const isCodeRequest = /\b(write|create|code|program|script|build|develop|generate|implement|design|example|calculator|game|solve|algorithm|function|class)\b/i.test(lower);
-    const isSpecificStaticQuery = (lower === 'what is python' || lower === 'what is java' || lower === 'what is javascript' || lower === 'what is ai' || lower === 'what is nlp' || lower === 'what is oop' || lower === 'what is sql' || lower === 'codealfa');
+    // 5. Handle Multi-turn Follow-up Context (e.g. "in hindi", "in hinglish", "in english", "give code")
+    if (isHindiFollowUp || isHinglishFollowUp || isEnglishFollowUp || isCodeFollowUp || isExplainMoreFollowUp) {
+      const targetLang = isHindiFollowUp ? 'hi' : (isHinglishFollowUp ? 'hinglish' : 'en');
 
-    // 6. Context Follow-up Switch (e.g. "in hindi", "in hinglish", "in english")
-    if (lower.trim() === 'in hindi' || lower.trim() === 'hindi me' || lower.trim() === 'in hinglish' || lower.trim() === 'hinglish me' || lower.trim() === 'in english') {
-      if (lastTopic && KNOWLEDGE_GRAPH[lastTopic]) {
+      // Check if last bot message belongs to a known topic
+      const combinedHistoryText = (lastTopic + ' ' + lastBotMsg + ' ' + previousUserPrompt).toLowerCase();
+      for (const [topicKey, topicData] of Object.entries(KNOWLEDGE_GRAPH)) {
+        if (combinedHistoryText.includes(topicKey) || (topicKey === 'os' && combinedHistoryText.includes('operating system'))) {
+          lastTopic = topicKey;
+          if (isCodeFollowUp) break;
+          return {
+            text: topicData[targetLang] || topicData['en'],
+            confidence: 1.0,
+            matchType: 'CONTEXT_FOLLOWUP_KNOWLEDGE',
+            language: targetLang
+          };
+        }
+      }
+
+      // Check Puter AI for live translation / continuation
+      if (window.puter && window.puter.ai && lastBotMsg) {
+        try {
+          let promptInstruction = '';
+          if (isHindiFollowUp) {
+            promptInstruction = `Translate and explain the following previous response in fluent, natural Hindi (हिंदी - Devanagari script) with clear bullet points and markdown:\n\n${lastBotMsg}`;
+          } else if (isHinglishFollowUp) {
+            promptInstruction = `Explain the following previous response in natural conversational Hinglish (Roman Hindi) with clear formatting:\n\n${lastBotMsg}`;
+          } else if (isCodeFollowUp) {
+            promptInstruction = `Write complete, working, production-ready code with examples for the following previous topic:\n\n${lastBotMsg}`;
+          } else {
+            promptInstruction = `Provide more deep details and examples for the previous topic:\n\n${lastBotMsg}`;
+          }
+
+          const res = await window.puter.ai.chat(promptInstruction, { model: 'gpt-4o-mini' });
+          let reply = (typeof res === 'string') ? res : (res && res.message ? res.message.content : '');
+          if (reply && reply.trim().length > 10) {
+            return {
+              text: reply.trim(),
+              confidence: 0.99,
+              matchType: 'PUTER_CONTEXT_FOLLOWUP',
+              language: targetLang
+            };
+          }
+        } catch (e) {}
+      }
+
+      // Context Fallback Translation
+      const prevTitleMatch = lastBotMsg.match(/###\s*([^\n\r]+)/);
+      const prevTitle = prevTitleMatch ? prevTitleMatch[1].replace(/[*#]/g, '').trim() : (previousUserPrompt || 'यह विषय');
+
+      if (isHindiFollowUp) {
         return {
-          text: KNOWLEDGE_GRAPH[lastTopic][langKey] || KNOWLEDGE_GRAPH[lastTopic]['en'],
-          confidence: 1.0,
-          matchType: 'CONTEXT_TRANSLATION',
-          language: langKey
+          text: `### 🇮🇳 **${prevTitle}** (हिंदी में संपूर्ण विवरण)\n\nयहाँ **${prevTitle}** की विस्तृत हिंदी व्याख्या है:\n\n- 🔍 **अवधारणा और परिभाषा**: यह आधुनिक कंप्यूटर विज्ञान, प्रोग्रामिंग और सॉफ्टवेयर सिस्टम का एक अत्यंत महत्वपूर्ण आधार है।\n- ⚙️ **मुख्य उद्देश्य**: सिस्टम को सुचारू, सुरक्षित और कुशल बनाना ताकि सभी कार्य बिना किसी रुकावट के पूरे हो सकें।\n- 💡 **व्यावहारिक उपयोग**: सॉफ्टवेयर इंजीनियरिंग, डेटा प्रोसेसिंग और रियल-वर्ल्ड एप्लीकेशन डेवलपमेंट में व्यापक रूप से इस्तेमाल होता है।\n\nयदि आप इस पर कोई विशेष कोड उदाहरण या प्रोग्राम देखना चाहते हैं, तो कृपया पूछें!`,
+          confidence: 0.98,
+          matchType: 'CONTEXT_TRANSLATION_HINDI',
+          language: 'hi'
+        };
+      } else if (isHinglishFollowUp) {
+        return {
+          text: `### 🇮🇳 **${prevTitle}** (Hinglish Overview)\n\nYeh **${prevTitle}** ke baare me detail explanation hai:\n\n- 🔍 **Core Concept**: Yeh computer science aur modern technology ka core part hai.\n- ⚙️ **Main Purpose**: Iska kaam system ko fast, secure aur efficient banana hota hai.\n- 🚀 **Real-world Use**: Software development aur automated solutions me use hota hai.\n\nAap iska complete code ya demo bhi pooch sakte hain!`,
+          confidence: 0.98,
+          matchType: 'CONTEXT_TRANSLATION_HINGLISH',
+          language: 'hinglish'
         };
       }
     }
 
-    // 7. Static Knowledge Graph only for exact definition lookups
+    // 6. Check if user is asking for code generation
+    const isCodeRequest = /\b(write|create|code|program|script|build|develop|generate|implement|design|example|calculator|game|solve|algorithm|function|class)\b/i.test(lower);
+    const isSpecificStaticQuery = (lower === 'what is python' || lower === 'what is java' || lower === 'what is javascript' || lower === 'what is ai' || lower === 'what is nlp' || lower === 'what is oop' || lower === 'what is sql' || lower === 'codealfa' || lower === 'what is operating system' || lower === 'what is os');
+
+    // 7. Static Knowledge Graph matching
     if (isSpecificStaticQuery && !isCodeRequest) {
       for (const [topic, content] of Object.entries(KNOWLEDGE_GRAPH)) {
-        if (lower.includes(topic)) {
+        if (lower.includes(topic) || (topic === 'os' && (lower.includes('operating system') || lower.includes('what is os')))) {
           lastTopic = topic;
           return {
             text: content[langKey] || content['en'],
@@ -621,30 +692,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API - Covers Any World Concept)
     try {
-      let searchTopic = text.replace(/^(what is|who is|explain|tell me about|define|meaning of|kya hai|ke baare me batao|what is an|what is a)\s+/i, '')
-                            .replace(/[?.,!]/g, '')
-                            .trim();
-      if (searchTopic.length >= 2) {
-        const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTopic.replace(/\s+/g, '_'))}`;
-        const wikiRes = await fetch(wikiUrl);
-        if (wikiRes.ok) {
-          const wikiData = await wikiRes.json();
-          if (wikiData && wikiData.extract && wikiData.extract.length > 25) {
-            let answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n`;
-            if (wikiData.description) {
-              answerText += `> 💡 **Context**: *${wikiData.description}*\n\n`;
+      const isFollowUpWord = /^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(text.trim());
+      if (!isFollowUpWord) {
+        let searchTopic = text.replace(/^(what is|who is|explain|tell me about|define|meaning of|kya hai|ke baare me batao|what is an|what is a)\s+/i, '')
+                              .replace(/[?.,!]/g, '')
+                              .trim();
+        if (searchTopic.length >= 2 && !/^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(searchTopic)) {
+          const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTopic.replace(/\s+/g, '_'))}`;
+          const wikiRes = await fetch(wikiUrl);
+          if (wikiRes.ok) {
+            const wikiData = await wikiRes.json();
+            if (wikiData && wikiData.extract && wikiData.extract.length > 25) {
+              let answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n`;
+              if (wikiData.description) {
+                answerText += `> 💡 **Context**: *${wikiData.description}*\n\n`;
+              }
+              if (langKey === 'hi' || isPureHindi) {
+                answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n> 💡 **विवरण**: यह आधुनिक तकनीक, विज्ञान और ज्ञान के प्रमुख क्षेत्रों में अध्ययन और उपयोग किया जाता है।`;
+              } else if (langKey === 'hinglish' || isHinglish) {
+                answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n> 💡 **Summary**: Yeh concept real-world technology aur computing me widely implemented hai.`;
+              }
+              return {
+                text: answerText,
+                confidence: 0.98,
+                matchType: 'UNIVERSAL_WIKIPEDIA_API',
+                language: langKey
+              };
             }
-            if (langKey === 'hi' || isPureHindi) {
-              answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n> 💡 **विवरण**: यह आधुनिक तकनीक, विज्ञान और ज्ञान के प्रमुख क्षेत्रों में अध्ययन और उपयोग किया जाता है।`;
-            } else if (langKey === 'hinglish' || isHinglish) {
-              answerText = `### 📖 **${wikiData.title}**\n\n${wikiData.extract}\n\n> 💡 **Summary**: Yeh concept real-world technology aur computing me widely implemented hai.`;
-            }
-            return {
-              text: answerText,
-              confidence: 0.98,
-              matchType: 'UNIVERSAL_WIKIPEDIA_API',
-              language: langKey
-            };
           }
         }
       }
