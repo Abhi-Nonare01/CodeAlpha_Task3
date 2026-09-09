@@ -1,0 +1,27 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Project (Maven Package)",
+            "type": "shell",
+            "command": "mvn package -DskipTests",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$maven"
+        },
+        {
+            "label": "Run AI Chatbot (GUI + Web)",
+            "type": "shell",
+            "command": "java -jar target/ai-chatbot-1.0.0.jar --both",
+            "group": "test"
+        },
+        {
+            "label": "Run Web Server (Port 8080)",
+            "type": "shell",
+            "command": "java -jar target/ai-chatbot-1.0.0.jar --web",
+            "group": "test"
+        }
+    ]
+}
