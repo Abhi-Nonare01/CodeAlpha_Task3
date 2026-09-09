@@ -1052,11 +1052,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 8. Auto-growing Textarea & Enter to Send
+  function updateSendBtnState() {
+    const hasText = chatTextarea.value.trim().length > 0;
+    btnSend.disabled = !hasText;
+  }
+
   chatTextarea.addEventListener('input', () => {
     chatTextarea.style.height = 'auto';
-    chatTextarea.style.height = (chatTextarea.scrollHeight) + 'px';
-    btnSend.disabled = chatTextarea.value.trim().length === 0;
+    chatTextarea.style.height = Math.min(chatTextarea.scrollHeight, 180) + 'px';
+    updateSendBtnState();
   });
+
+  chatTextarea.addEventListener('keyup', updateSendBtnState);
+  chatTextarea.addEventListener('change', updateSendBtnState);
+  chatTextarea.addEventListener('paste', () => setTimeout(updateSendBtnState, 50));
 
   chatTextarea.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1065,7 +1074,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  btnSend.addEventListener('click', () => handleSendMessage());
+  btnSend.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleSendMessage();
+  });
 
   // 9. New Chat (ChatGPT-style behavior)
   newChatBtn.addEventListener('click', () => {

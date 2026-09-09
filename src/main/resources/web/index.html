@@ -164,17 +164,8 @@
         <div id="scroll-anchor"></div>
       </div>
 
-      <!-- Floating Minimalist Input Bar with Magic Action Chips -->
       <!-- Floating Minimalist Input Bar -->
       <div class="input-container-wrap">
-        <!-- Magic AI Quick Action Chips -->
-        <div class="magic-chips-row">
-          <button class="magic-chip" data-action="code">💻 Full Code</button>
-          <button class="magic-chip" data-action="explain">🔍 Explain Simply</button>
-          <button class="magic-chip" data-action="debug">🐛 Debug & Fix</button>
-          <button class="magic-chip" data-action="hindi">🇮🇳 In Hindi</button>
-        </div>
-
         <div class="chat-input-card">
           <textarea 
             id="chat-textarea" 
@@ -189,9 +180,12 @@
               <i data-lucide="mic" id="mic-icon"></i>
             </button>
 
-            <!-- Send Button -->
+            <!-- Send Button with Crisp Inline SVG -->
             <button class="send-round-btn" id="btn-send" title="Send message" disabled>
-              <i data-lucide="arrow-up"></i>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
             </button>
           </div>
         </div>

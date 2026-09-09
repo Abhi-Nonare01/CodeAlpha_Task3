@@ -603,35 +603,6 @@ body {
   color: white;
 }
 
-/* Magic Action Chips */
-.magic-chips-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-
-.magic-chip {
-  padding: 4px 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-full);
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all var(--transition-smooth);
-}
-
-.magic-chip:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-main);
-  border-color: var(--border-focus);
-  transform: translateY(-1px);
-}
 
 .msg-content pre code {
   background: transparent;
