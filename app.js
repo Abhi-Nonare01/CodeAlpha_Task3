@@ -682,7 +682,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return { text: `You haven't told me your name yet! Say *"My name is [your name]"*.`, confidence: 0.9, matchType: 'RULE_MEMORY', language: 'en' };
     }
 
-    // 0. Extract Session History & Previous Turn Context (ChatGPT-Grade Multi-Turn Continuity)
     // 0. Extract Session History & Previous Turn Context (ChatGPT/Claude Grade Multi-Turn Continuity)
     const sess = getActiveSession();
     const history = (sess && sess.messages) ? sess.messages : [];
@@ -691,13 +690,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastBotMsg = botMessages.length > 0 ? botMessages[botMessages.length - 1].text : '';
     const previousUserPrompt = userMessages.length > 1 ? userMessages[userMessages.length - 2].text : '';
 
-    // 0.1 Context Follow-up Intents
-    const isHindiFollowUp = /^(?:in\s+hindi|hindi\s+me|translate\s+(?:in|to)?\s*hindi|hindi\s+me\s+batao|hindi\s+me\s+samjhao|hindi\s+version|hindi\s+translation|hindi)$/i.test(lower.trim());
-    const isHinglishFollowUp = /^(?:in\s+hinglish|hinglish\s+me|translate\s+(?:in|to)?\s*hinglish|hinglish\s+me\s+batao|hinglish\s+me\s+samjhao|hinglish)$/i.test(lower.trim());
-    const isEnglishFollowUp = /^(?:in\s+english|english\s+me|translate\s+(?:in|to)?\s*english|explain\s+in\s+english|english)$/i.test(lower.trim());
-    const isExplainMoreFollowUp = /^(?:explain\s+more|aur\s+batao|more\s+details|deep\s+explanation|tell\s+me\s+more|elaborate|details)$/i.test(lower.trim());
-    const isCodeFollowUp = /^(?:code|give\s+code|write\s+code|code\s+please|provide\s+code|code\s+bhi\s+do|show\s+code)$/i.test(lower.trim());
-    const isShortSummary = /^(?:summarize|summary|short\s+me|short\s+summary|in\s+short|brief|in\s+brief)$/i.test(lower.trim());
     const cleanInput = lower.trim().replace(/[?!.,;]/g, '');
 
     // 0.1 Comprehensive Follow-up Intent Detectors
@@ -716,19 +708,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const isFollowUp = isHinglishFollowUp || isHindiFollowUp || isEnglishFollowUp || isExplainMoreFollowUp || isCodeFollowUp || isShortSummary;
 
     // 4. Determine Language Target
-    const isPureHindi = /[\u0900-\u097F]/.test(text) || lower.includes('in hindi') || lower.includes('hindi me') || isHindiFollowUp;
-    const isHinglish = lower.includes('in hinglish') || lower.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower) || isHinglishFollowUp;
     const isPureHindi = /[\u0900-\u097F]/.test(text) || cleanInput.includes('in hindi') || cleanInput.includes('hindi me') || isHindiFollowUp;
     const isHinglish = cleanInput.includes('in hinglish') || cleanInput.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower) || isHinglishFollowUp;
     const langKey = isPureHindi ? 'hi' : (isHinglish ? 'hinglish' : 'en');
 
-    // 5. Handle Multi-turn Follow-up Context (e.g. "in hindi", "in hinglish", "in english", "give code")
-    if (isHindiFollowUp || isHinglishFollowUp || isEnglishFollowUp || isCodeFollowUp || isExplainMoreFollowUp) {
     // 5. Handle Multi-turn Follow-up Context (Translate / Re-explain previous topic)
     if (isFollowUp && (lastBotMsg || previousUserPrompt)) {
       const targetLang = isHindiFollowUp ? 'hi' : (isHinglishFollowUp ? 'hinglish' : 'en');
 
-      // Check if last bot message belongs to a known topic
       // Check if last bot message belongs to a built-in knowledge topic
       const combinedHistoryText = (lastTopic + ' ' + lastBotMsg + ' ' + previousUserPrompt).toLowerCase();
       for (const [topicKey, topicData] of Object.entries(KNOWLEDGE_GRAPH)) {
@@ -744,16 +731,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Check Puter AI for live translation / continuation
-      if (window.puter && window.puter.ai && lastBotMsg) {
       // Execute Real-Time GPT-4o-mini / Claude for contextual continuation
       if (window.puter && window.puter.ai) {
         try {
           let promptInstruction = '';
-          if (isHindiFollowUp) {
-            promptInstruction = `Translate and explain the following previous response in fluent, natural Hindi (हिंदी - Devanagari script) with clear bullet points and markdown:\n\n${lastBotMsg}`;
-          } else if (isHinglishFollowUp) {
-            promptInstruction = `Explain the following previous response in natural conversational Hinglish (Roman Hindi) with clear formatting:\n\n${lastBotMsg}`;
           if (isHinglishFollowUp) {
             promptInstruction = `The user previously asked about a topic and now said "${text}". Explain the ENTIRE previous response/topic in clear, natural conversational Hinglish (Hindi written in English alphabets / Roman Hindi). Do NOT define what Hinglish means. Directly explain the subject in depth with clean markdown, bullet points, and code:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else if (isHindiFollowUp) {
@@ -761,12 +742,10 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (isEnglishFollowUp) {
             promptInstruction = `Re-explain the entire previous response/topic in simple, clear, professional English with full details:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else if (isCodeFollowUp) {
-            promptInstruction = `Write complete, working, production-ready code with examples for the following previous topic:\n\n${lastBotMsg}`;
             promptInstruction = `Write complete, production-ready, working code with explanations for the previous topic:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else if (isShortSummary) {
             promptInstruction = `Summarize the previous response into 3-4 concise, high-impact bullet points:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else {
-            promptInstruction = `Provide more deep details and examples for the previous topic:\n\n${lastBotMsg}`;
             promptInstruction = `Provide much deeper technical details, examples, and edge-cases for the previous topic:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           }
 
@@ -888,9 +867,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API - Covers Any World Concept)
+    // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API)
     try {
-      const isFollowUpWord = /^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(text.trim());
-      if (!isFollowUpWord) {
       const isFollowUpWord = /^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(cleanInput);
       if (!isFollowUpWord && !isFollowUp) {
         let searchTopic = text.replace(/^(what is|who is|explain|tell me about|define|meaning of|kya hai|ke baare me batao|what is an|what is a)\s+/i, '')

@@ -888,6 +888,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API - Covers Any World Concept)
+    // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API)
     try {
       const isFollowUpWord = /^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(text.trim());
       if (!isFollowUpWord) {
