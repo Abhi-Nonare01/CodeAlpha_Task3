@@ -113,15 +113,33 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => toast.remove(), 2600);
   }
 
-  // 1. Single Sidebar Toggle
+  // 1. Mobile & Desktop Sidebar Toggle with Backdrop
+  const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+
   function toggleSidebar() {
-    sidebar.classList.toggle('collapsed');
     if (window.innerWidth <= 768) {
-      sidebar.classList.toggle('mobile-open');
+      const isOpen = sidebar.classList.toggle('mobile-open');
+      if (sidebarBackdrop) {
+        sidebarBackdrop.classList.toggle('active', isOpen);
+      }
+    } else {
+      sidebar.classList.toggle('collapsed');
+    }
+  }
+
+  function closeMobileSidebar() {
+    if (window.innerWidth <= 768) {
+      sidebar.classList.remove('mobile-open');
+      if (sidebarBackdrop) {
+        sidebarBackdrop.classList.remove('active');
+      }
     }
   }
 
   sidebarToggleBtn.addEventListener('click', toggleSidebar);
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+  }
 
   // 2. Robust ChatGPT-style Session Management
   function getActiveSession() {
@@ -195,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('nexus_current_session', currentSessionId);
     renderHistorySidebar();
     loadCurrentSessionUI();
+    closeMobileSidebar();
   }
 
   function deleteSession(id) {
@@ -1010,6 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSend.disabled = true;
     renderHistorySidebar();
     scrollCanvasToBottom();
+    closeMobileSidebar();
   });
 
   btnClearHistory.addEventListener('click', () => {
