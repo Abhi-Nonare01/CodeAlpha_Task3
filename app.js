@@ -240,6 +240,46 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollCanvasToBottom();
   }
 
+  // Share Entire Conversation or Specific Response (ChatGPT Style)
+  function shareConversation(specificResponse = null) {
+    const sess = getActiveSession();
+    if (!sess || !sess.messages || sess.messages.length === 0) {
+      if (specificResponse) {
+        navigator.clipboard.writeText(specificResponse);
+        showToast('Response copied to clipboard!', 'share-2');
+      } else {
+        showToast('No messages to share', 'alert-circle');
+      }
+      return;
+    }
+
+    const title = sess.title || 'AI Chat Session';
+    let formattedChat = `🤖 NexusAI Chat: "${title}"\n${'='.repeat(35)}\n\n`;
+    sess.messages.forEach((m) => {
+      const sender = m.sender === 'user' ? '👤 User' : '🤖 NexusAI';
+      formattedChat += `${sender}:\n${m.text}\n\n`;
+    });
+    formattedChat += `— Shared from NexusAI Assistant`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: `NexusAI: ${title}`,
+        text: formattedChat,
+        url: window.location.href
+      }).then(() => {
+        showToast('Conversation shared successfully! 🚀', 'check');
+      }).catch((err) => {
+        if (err && err.name !== 'AbortError') {
+          navigator.clipboard.writeText(formattedChat);
+          showToast('Conversation copied to clipboard! 📋', 'check');
+        }
+      });
+    } else {
+      navigator.clipboard.writeText(formattedChat);
+      showToast('Conversation copied to clipboard! 📋 Ready to share', 'check');
+    }
+  }
+
   // 3. Message Bubble & Streaming
   function renderMessageBubble(sender, text, confidence = 1.0, matchType = 'AI_GENERATIVE', lang = 'en', animate = false) {
     welcomeHero.style.display = 'none';
@@ -329,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const actionBar = document.createElement('div');
       actionBar.className = 'bot-action-bar';
 
+      // 1. Copy Response
       const copyBtn = document.createElement('button');
       copyBtn.className = 'mini-action-btn';
       copyBtn.title = 'Copy response';
@@ -344,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       actionBar.appendChild(copyBtn);
 
+      // 2. Read Aloud / Stop Audio
       const speakBtn = document.createElement('button');
       speakBtn.className = 'mini-action-btn speak-toggle-btn';
       speakBtn.title = 'Listen / Stop audio';
@@ -357,17 +399,19 @@ document.addEventListener('DOMContentLoaded', () => {
       speakBtn.addEventListener('click', () => toggleSpeech(text, speakBtn, lang));
       actionBar.appendChild(speakBtn);
 
-      const likeBtn = document.createElement('button');
-      likeBtn.className = 'mini-action-btn';
-      likeBtn.title = 'Good response';
-      likeBtn.innerHTML = `
+      // 3. Share Entire Conversation (ChatGPT Feature - replaced thumbs up)
+      const shareBtn = document.createElement('button');
+      shareBtn.className = 'mini-action-btn';
+      shareBtn.title = 'Share conversation';
+      shareBtn.innerHTML = `
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M7 10v12"></path>
-          <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path>
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+          <polyline points="16 6 12 2 8 6"></polyline>
+          <line x1="12" y1="2" x2="12" y2="15"></line>
         </svg>
       `;
-      likeBtn.addEventListener('click', () => showToast('Thanks for your feedback!', 'smile'));
-      actionBar.appendChild(likeBtn);
+      shareBtn.addEventListener('click', () => shareConversation());
+      actionBar.appendChild(shareBtn);
 
       wrapper.appendChild(actionBar);
     }

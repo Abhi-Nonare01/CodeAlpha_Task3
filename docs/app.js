@@ -240,6 +240,46 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollCanvasToBottom();
   }
 
+  // Share Entire Conversation or Specific Response (ChatGPT Style)
+  function shareConversation(specificResponse = null) {
+    const sess = getActiveSession();
+    if (!sess || !sess.messages || sess.messages.length === 0) {
+      if (specificResponse) {
+        navigator.clipboard.writeText(specificResponse);
+        showToast('Response copied to clipboard!', 'share-2');
+      } else {
+        showToast('No messages to share', 'alert-circle');
+      }
+      return;
+    }
+
+    const title = sess.title || 'AI Chat Session';
+    let formattedChat = `🤖 NexusAI Chat: "${title}"\n${'='.repeat(35)}\n\n`;
+    sess.messages.forEach((m) => {
+      const sender = m.sender === 'user' ? '👤 User' : '🤖 NexusAI';
+      formattedChat += `${sender}:\n${m.text}\n\n`;
+    });
+    formattedChat += `— Shared from NexusAI Assistant`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: `NexusAI: ${title}`,
+        text: formattedChat,
+        url: window.location.href
+      }).then(() => {
+        showToast('Conversation shared successfully! 🚀', 'check');
+      }).catch((err) => {
+        if (err && err.name !== 'AbortError') {
+          navigator.clipboard.writeText(formattedChat);
+          showToast('Conversation copied to clipboard! 📋', 'check');
+        }
+      });
+    } else {
+      navigator.clipboard.writeText(formattedChat);
+      showToast('Conversation copied to clipboard! 📋 Ready to share', 'check');
+    }
+  }
+
   // 3. Message Bubble & Streaming
   function renderMessageBubble(sender, text, confidence = 1.0, matchType = 'AI_GENERATIVE', lang = 'en', animate = false) {
     welcomeHero.style.display = 'none';
@@ -329,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const actionBar = document.createElement('div');
       actionBar.className = 'bot-action-bar';
 
+      // 1. Copy Response
       const copyBtn = document.createElement('button');
       copyBtn.className = 'mini-action-btn';
       copyBtn.title = 'Copy response';
@@ -344,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       actionBar.appendChild(copyBtn);
 
+      // 2. Read Aloud / Stop Audio
       const speakBtn = document.createElement('button');
       speakBtn.className = 'mini-action-btn speak-toggle-btn';
       speakBtn.title = 'Listen / Stop audio';
@@ -361,13 +403,23 @@ document.addEventListener('DOMContentLoaded', () => {
       likeBtn.className = 'mini-action-btn';
       likeBtn.title = 'Good response';
       likeBtn.innerHTML = `
+      // 3. Share Entire Conversation (ChatGPT Feature - replaced thumbs up)
+      const shareBtn = document.createElement('button');
+      shareBtn.className = 'mini-action-btn';
+      shareBtn.title = 'Share conversation';
+      shareBtn.innerHTML = `
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M7 10v12"></path>
           <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path>
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+          <polyline points="16 6 12 2 8 6"></polyline>
+          <line x1="12" y1="2" x2="12" y2="15"></line>
         </svg>
       `;
       likeBtn.addEventListener('click', () => showToast('Thanks for your feedback!', 'smile'));
       actionBar.appendChild(likeBtn);
+      shareBtn.addEventListener('click', () => shareConversation());
+      actionBar.appendChild(shareBtn);
 
       wrapper.appendChild(actionBar);
     }
@@ -682,7 +734,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return { text: `You haven't told me your name yet! Say *"My name is [your name]"*.`, confidence: 0.9, matchType: 'RULE_MEMORY', language: 'en' };
     }
 
-    // 0. Extract Session History & Previous Turn Context (ChatGPT-Grade Multi-Turn Continuity)
     // 0. Extract Session History & Previous Turn Context (ChatGPT/Claude Grade Multi-Turn Continuity)
     const sess = getActiveSession();
     const history = (sess && sess.messages) ? sess.messages : [];
@@ -691,13 +742,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastBotMsg = botMessages.length > 0 ? botMessages[botMessages.length - 1].text : '';
     const previousUserPrompt = userMessages.length > 1 ? userMessages[userMessages.length - 2].text : '';
 
-    // 0.1 Context Follow-up Intents
-    const isHindiFollowUp = /^(?:in\s+hindi|hindi\s+me|translate\s+(?:in|to)?\s*hindi|hindi\s+me\s+batao|hindi\s+me\s+samjhao|hindi\s+version|hindi\s+translation|hindi)$/i.test(lower.trim());
-    const isHinglishFollowUp = /^(?:in\s+hinglish|hinglish\s+me|translate\s+(?:in|to)?\s*hinglish|hinglish\s+me\s+batao|hinglish\s+me\s+samjhao|hinglish)$/i.test(lower.trim());
-    const isEnglishFollowUp = /^(?:in\s+english|english\s+me|translate\s+(?:in|to)?\s*english|explain\s+in\s+english|english)$/i.test(lower.trim());
-    const isExplainMoreFollowUp = /^(?:explain\s+more|aur\s+batao|more\s+details|deep\s+explanation|tell\s+me\s+more|elaborate|details)$/i.test(lower.trim());
-    const isCodeFollowUp = /^(?:code|give\s+code|write\s+code|code\s+please|provide\s+code|code\s+bhi\s+do|show\s+code)$/i.test(lower.trim());
-    const isShortSummary = /^(?:summarize|summary|short\s+me|short\s+summary|in\s+short|brief|in\s+brief)$/i.test(lower.trim());
     const cleanInput = lower.trim().replace(/[?!.,;]/g, '');
 
     // 0.1 Comprehensive Follow-up Intent Detectors
@@ -716,19 +760,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const isFollowUp = isHinglishFollowUp || isHindiFollowUp || isEnglishFollowUp || isExplainMoreFollowUp || isCodeFollowUp || isShortSummary;
 
     // 4. Determine Language Target
-    const isPureHindi = /[\u0900-\u097F]/.test(text) || lower.includes('in hindi') || lower.includes('hindi me') || isHindiFollowUp;
-    const isHinglish = lower.includes('in hinglish') || lower.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower) || isHinglishFollowUp;
     const isPureHindi = /[\u0900-\u097F]/.test(text) || cleanInput.includes('in hindi') || cleanInput.includes('hindi me') || isHindiFollowUp;
     const isHinglish = cleanInput.includes('in hinglish') || cleanInput.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower) || isHinglishFollowUp;
     const langKey = isPureHindi ? 'hi' : (isHinglish ? 'hinglish' : 'en');
 
-    // 5. Handle Multi-turn Follow-up Context (e.g. "in hindi", "in hinglish", "in english", "give code")
-    if (isHindiFollowUp || isHinglishFollowUp || isEnglishFollowUp || isCodeFollowUp || isExplainMoreFollowUp) {
     // 5. Handle Multi-turn Follow-up Context (Translate / Re-explain previous topic)
     if (isFollowUp && (lastBotMsg || previousUserPrompt)) {
       const targetLang = isHindiFollowUp ? 'hi' : (isHinglishFollowUp ? 'hinglish' : 'en');
 
-      // Check if last bot message belongs to a known topic
       // Check if last bot message belongs to a built-in knowledge topic
       const combinedHistoryText = (lastTopic + ' ' + lastBotMsg + ' ' + previousUserPrompt).toLowerCase();
       for (const [topicKey, topicData] of Object.entries(KNOWLEDGE_GRAPH)) {
@@ -744,16 +783,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Check Puter AI for live translation / continuation
-      if (window.puter && window.puter.ai && lastBotMsg) {
       // Execute Real-Time GPT-4o-mini / Claude for contextual continuation
       if (window.puter && window.puter.ai) {
         try {
           let promptInstruction = '';
-          if (isHindiFollowUp) {
-            promptInstruction = `Translate and explain the following previous response in fluent, natural Hindi (हिंदी - Devanagari script) with clear bullet points and markdown:\n\n${lastBotMsg}`;
-          } else if (isHinglishFollowUp) {
-            promptInstruction = `Explain the following previous response in natural conversational Hinglish (Roman Hindi) with clear formatting:\n\n${lastBotMsg}`;
           if (isHinglishFollowUp) {
             promptInstruction = `The user previously asked about a topic and now said "${text}". Explain the ENTIRE previous response/topic in clear, natural conversational Hinglish (Hindi written in English alphabets / Roman Hindi). Do NOT define what Hinglish means. Directly explain the subject in depth with clean markdown, bullet points, and code:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else if (isHindiFollowUp) {
@@ -761,12 +794,10 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (isEnglishFollowUp) {
             promptInstruction = `Re-explain the entire previous response/topic in simple, clear, professional English with full details:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else if (isCodeFollowUp) {
-            promptInstruction = `Write complete, working, production-ready code with examples for the following previous topic:\n\n${lastBotMsg}`;
             promptInstruction = `Write complete, production-ready, working code with explanations for the previous topic:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else if (isShortSummary) {
             promptInstruction = `Summarize the previous response into 3-4 concise, high-impact bullet points:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else {
-            promptInstruction = `Provide more deep details and examples for the previous topic:\n\n${lastBotMsg}`;
             promptInstruction = `Provide much deeper technical details, examples, and edge-cases for the previous topic:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           }
 
@@ -890,8 +921,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API - Covers Any World Concept)
     // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API)
     try {
-      const isFollowUpWord = /^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(text.trim());
-      if (!isFollowUpWord) {
       const isFollowUpWord = /^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(cleanInput);
       if (!isFollowUpWord && !isFollowUp) {
         let searchTopic = text.replace(/^(what is|who is|explain|tell me about|define|meaning of|kya hai|ke baare me batao|what is an|what is a)\s+/i, '')
