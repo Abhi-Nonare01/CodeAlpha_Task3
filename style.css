@@ -686,16 +686,31 @@ body {
 
 #chat-textarea {
   flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
   font-family: inherit;
-  font-size: 0.94rem;
-  color: var(--text-main);
+  font-size: 0.96rem;
+  color: #f1f3f4 !important;
+  caret-color: #8ab4f8;
   resize: none;
   max-height: 160px;
   line-height: 1.45;
   padding: 4px 4px;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  box-sizing: border-box;
+}
+
+#chat-textarea::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+body.theme-light #chat-textarea {
+  color: #1f1f1f !important;
 }
 
 #chat-textarea::placeholder {
@@ -716,18 +731,28 @@ body {
   animation: pulseRed 1.2s infinite;
 }
 
+.voice-btn svg {
+  width: 17px;
+  height: 17px;
+  stroke: var(--text-muted);
+}
+
+.voice-btn:hover svg {
+  stroke: var(--text-main);
+}
+
 @keyframes pulseRed {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
 }
 
 .send-round-btn {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: var(--accent-primary);
+  background: #1a73e8;
   border: none;
-  color: white;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -737,18 +762,26 @@ body {
 }
 
 .send-round-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.35;
+  background: #3c4043;
   cursor: not-allowed;
 }
 
+.send-round-btn:not(:disabled) {
+  background: #1a73e8;
+  box-shadow: 0 0 12px rgba(66, 133, 244, 0.4);
+}
+
 .send-round-btn:not(:disabled):hover {
-  background: var(--accent-hover);
-  transform: scale(1.06);
+  background: #1557b0;
+  transform: scale(1.08);
 }
 
 .send-round-btn svg {
   width: 16px;
   height: 16px;
+  stroke: #ffffff;
+  fill: none;
 }
 
 /* ============================================================

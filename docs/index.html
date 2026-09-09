@@ -73,7 +73,10 @@
       <header class="top-nav">
         <div class="nav-left">
           <button class="icon-btn" id="sidebar-toggle-btn" title="Toggle Sidebar">
-            <i data-lucide="panel-left"></i>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+              <path d="M9 3v18"></path>
+            </svg>
           </button>
           <div class="header-brand-title">
             <span class="header-name">NexusAI</span>
@@ -101,25 +104,41 @@
             </select>
           </div>
 
-          <button class="header-pill-btn" id="btn-open-trainer-top" title="FAQ Trainer">
-            <i data-lucide="sparkles"></i>
-            <span>FAQ Trainer</span>
-          </button>
-
           <button class="icon-btn" id="btn-tts-toggle" title="Voice Output (TTS)">
-            <i data-lucide="volume-2" id="tts-icon"></i>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+            </svg>
           </button>
           
           <button class="icon-btn" id="btn-sfx-toggle" title="Sound Effects">
-            <i data-lucide="bell" id="sfx-icon"></i>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+            </svg>
           </button>
 
           <button class="icon-btn" id="btn-export-menu" title="Export Chat">
-            <i data-lucide="download"></i>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
           </button>
 
           <button class="icon-btn" id="btn-theme-toggle" title="Toggle Dark/Light Mode">
-            <i data-lucide="sun" id="theme-icon"></i>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2"></path>
+              <path d="M12 20v2"></path>
+              <path d="m4.93 4.93 1.41 1.41"></path>
+              <path d="m17.66 17.66 1.41 1.41"></path>
+              <path d="M2 12h2"></path>
+              <path d="M20 12h2"></path>
+              <path d="m6.34 17.66-1.41 1.41"></path>
+              <path d="m19.07 4.93-1.41 1.41"></path>
+            </svg>
           </button>
         </div>
       </header>
@@ -134,29 +153,6 @@
           </div>
 
           <h2 id="greeting-text">How can I help you today?</h2>
-
-          <!-- 4 Simple, Clean Starter Cards -->
-          <div class="simple-starter-grid">
-            <div class="simple-card" data-prompt="What is Artificial Intelligence and how does NLP work?">
-              <span class="card-emoji">🧠</span>
-              <span class="card-label">Explore AI & NLP</span>
-            </div>
-
-            <div class="simple-card" data-prompt="What is the difference between HashMap and Hashtable in Java?">
-              <span class="card-emoji">☕</span>
-              <span class="card-label">Java Programming</span>
-            </div>
-
-            <div class="simple-card" data-prompt="calc (128 * 16) + sqrt(256) - 48">
-              <span class="card-emoji">🧮</span>
-              <span class="card-label">Math Calculator</span>
-            </div>
-
-            <div class="simple-card" data-prompt="Tell me about CodeAlfa internship tasks and submission guidelines">
-              <span class="card-emoji">💼</span>
-              <span class="card-label">CodeAlfa Internship</span>
-            </div>
-          </div>
         </div>
 
         <!-- Chat Messages Stream -->
@@ -172,12 +168,17 @@
             rows="1" 
             placeholder="Ask me anything in the universe..." 
             autocomplete="off"
+            spellcheck="false"
           ></textarea>
 
           <div class="input-controls-right">
             <!-- Voice Mic -->
             <button class="icon-btn voice-btn" id="btn-voice-input" title="Voice Input">
-              <i data-lucide="mic" id="mic-icon"></i>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
             </button>
 
             <!-- Send Button with Crisp Inline SVG -->

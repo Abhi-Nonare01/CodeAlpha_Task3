@@ -881,12 +881,28 @@ document.addEventListener('DOMContentLoaded', () => {
     chatTextarea.focus();
   }
 
-  // 5. Starter Cards
-  document.querySelectorAll('.simple-card').forEach(card => {
-    card.addEventListener('click', () => {
-      handleSendMessage(card.dataset.prompt);
-    });
-  });
+  // 5. Dynamic ChatGPT-style Greeting Engine
+  const DYNAMIC_GREETINGS = [
+    "How's the mood today? 😊",
+    "What are we building today? 🚀",
+    "Got a complex problem? Let's solve it! 💡",
+    "How can I inspire you today? ✨",
+    "What's on your mind today? 🧠",
+    "Ready to code, create, or explore? 💻",
+    "How can I help you today? 🌟",
+    "Need math, code, or a fast answer? ⚡",
+    "What exciting challenge shall we tackle? 🔥"
+  ];
+
+  function updateDynamicGreeting() {
+    const greetingEl = document.getElementById('greeting-text');
+    if (greetingEl) {
+      const randomGreeting = DYNAMIC_GREETINGS[Math.floor(Math.random() * DYNAMIC_GREETINGS.length)];
+      greetingEl.textContent = randomGreeting;
+    }
+  }
+
+  updateDynamicGreeting();
 
   // 6. Clean, Natural Text-to-Speech Engine
   let availableVoices = [];
@@ -1086,6 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('nexus_current_session');
     messagesContainer.innerHTML = '';
     welcomeHero.style.display = 'flex';
+    updateDynamicGreeting();
     chatTextarea.value = '';
     btnSend.disabled = true;
     renderHistorySidebar();
