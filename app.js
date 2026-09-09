@@ -551,6 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return { text: `You haven't told me your name yet! Say *"My name is [your name]"*.`, confidence: 0.9, matchType: 'RULE_MEMORY', language: 'en' };
     }
 
+    // 0. Extract Session History & Previous Turn Context (ChatGPT-Grade Multi-Turn Continuity)
     // 0. Extract Session History & Previous Turn Context (ChatGPT/Claude Grade Multi-Turn Continuity)
     const sess = getActiveSession();
     const history = (sess && sess.messages) ? sess.messages : [];
@@ -559,6 +560,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastBotMsg = botMessages.length > 0 ? botMessages[botMessages.length - 1].text : '';
     const previousUserPrompt = userMessages.length > 1 ? userMessages[userMessages.length - 2].text : '';
 
+    // 0.1 Context Follow-up Intents
+    const isHindiFollowUp = /^(?:in\s+hindi|hindi\s+me|translate\s+(?:in|to)?\s*hindi|hindi\s+me\s+batao|hindi\s+me\s+samjhao|hindi\s+version|hindi\s+translation|hindi)$/i.test(lower.trim());
+    const isHinglishFollowUp = /^(?:in\s+hinglish|hinglish\s+me|translate\s+(?:in|to)?\s*hinglish|hinglish\s+me\s+batao|hinglish\s+me\s+samjhao|hinglish)$/i.test(lower.trim());
+    const isEnglishFollowUp = /^(?:in\s+english|english\s+me|translate\s+(?:in|to)?\s*english|explain\s+in\s+english|english)$/i.test(lower.trim());
+    const isExplainMoreFollowUp = /^(?:explain\s+more|aur\s+batao|more\s+details|deep\s+explanation|tell\s+me\s+more|elaborate|details)$/i.test(lower.trim());
+    const isCodeFollowUp = /^(?:code|give\s+code|write\s+code|code\s+please|provide\s+code|code\s+bhi\s+do|show\s+code)$/i.test(lower.trim());
+    const isShortSummary = /^(?:summarize|summary|short\s+me|short\s+summary|in\s+short|brief|in\s+brief)$/i.test(lower.trim());
     const cleanInput = lower.trim().replace(/[?!.,;]/g, '');
 
     // 0.1 Comprehensive Follow-up Intent Detectors
@@ -577,14 +585,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const isFollowUp = isHinglishFollowUp || isHindiFollowUp || isEnglishFollowUp || isExplainMoreFollowUp || isCodeFollowUp || isShortSummary;
 
     // 4. Determine Language Target
+    const isPureHindi = /[\u0900-\u097F]/.test(text) || lower.includes('in hindi') || lower.includes('hindi me') || isHindiFollowUp;
+    const isHinglish = lower.includes('in hinglish') || lower.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower) || isHinglishFollowUp;
     const isPureHindi = /[\u0900-\u097F]/.test(text) || cleanInput.includes('in hindi') || cleanInput.includes('hindi me') || isHindiFollowUp;
     const isHinglish = cleanInput.includes('in hinglish') || cleanInput.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower) || isHinglishFollowUp;
     const langKey = isPureHindi ? 'hi' : (isHinglish ? 'hinglish' : 'en');
 
+    // 5. Handle Multi-turn Follow-up Context (e.g. "in hindi", "in hinglish", "in english", "give code")
+    if (isHindiFollowUp || isHinglishFollowUp || isEnglishFollowUp || isCodeFollowUp || isExplainMoreFollowUp) {
     // 5. Handle Multi-turn Follow-up Context (Translate / Re-explain previous topic)
     if (isFollowUp && (lastBotMsg || previousUserPrompt)) {
       const targetLang = isHindiFollowUp ? 'hi' : (isHinglishFollowUp ? 'hinglish' : 'en');
 
+      // Check if last bot message belongs to a known topic
       // Check if last bot message belongs to a built-in knowledge topic
       const combinedHistoryText = (lastTopic + ' ' + lastBotMsg + ' ' + previousUserPrompt).toLowerCase();
       for (const [topicKey, topicData] of Object.entries(KNOWLEDGE_GRAPH)) {
@@ -600,10 +613,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // Check Puter AI for live translation / continuation
+      if (window.puter && window.puter.ai && lastBotMsg) {
       // Execute Real-Time GPT-4o-mini / Claude for contextual continuation
       if (window.puter && window.puter.ai) {
         try {
           let promptInstruction = '';
+          if (isHindiFollowUp) {
+            promptInstruction = `Translate and explain the following previous response in fluent, natural Hindi (हिंदी - Devanagari script) with clear bullet points and markdown:\n\n${lastBotMsg}`;
+          } else if (isHinglishFollowUp) {
+            promptInstruction = `Explain the following previous response in natural conversational Hinglish (Roman Hindi) with clear formatting:\n\n${lastBotMsg}`;
           if (isHinglishFollowUp) {
             promptInstruction = `The user previously asked about a topic and now said "${text}". Explain the ENTIRE previous response/topic in clear, natural conversational Hinglish (Hindi written in English alphabets / Roman Hindi). Do NOT define what Hinglish means. Directly explain the subject in depth with clean markdown, bullet points, and code:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else if (isHindiFollowUp) {
@@ -611,10 +630,12 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (isEnglishFollowUp) {
             promptInstruction = `Re-explain the entire previous response/topic in simple, clear, professional English with full details:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else if (isCodeFollowUp) {
+            promptInstruction = `Write complete, working, production-ready code with examples for the following previous topic:\n\n${lastBotMsg}`;
             promptInstruction = `Write complete, production-ready, working code with explanations for the previous topic:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else if (isShortSummary) {
             promptInstruction = `Summarize the previous response into 3-4 concise, high-impact bullet points:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           } else {
+            promptInstruction = `Provide more deep details and examples for the previous topic:\n\n${lastBotMsg}`;
             promptInstruction = `Provide much deeper technical details, examples, and edge-cases for the previous topic:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
           }
 
@@ -671,9 +692,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 8. REAL-TIME AI ENGINE VIA PUTER.JS (Direct GPT-4o-mini & Claude API with Multi-turn Conversation Context)
+    // 8. REAL-TIME AI ENGINE VIA PUTER.JS (GPT-3.6 Luna, GPT-4o-mini & Claude API)
     if (window.puter && window.puter.ai) {
       try {
+        const selectedModel = modelSelect ? modelSelect.value : 'luna';
+        const modelTarget = (selectedModel === 'claude') ? 'claude-3-5-sonnet' : 'gpt-4o-mini';
+
         // Build recent conversation transcript for full contextual awareness
         let recentContextStr = '';
         if (history.length > 0) {
@@ -681,12 +705,15 @@ document.addEventListener('DOMContentLoaded', () => {
           recentContextStr = 'Recent Conversation History:\n' + recentHistory.map(m => `[${m.sender === 'user' ? 'User' : 'Assistant'}]: ${m.text.substring(0, 300)}`).join('\n') + '\n\n';
         }
 
-        const aiPrompt = isCodeRequest 
-          ? `You are an expert full-stack software engineer like ChatGPT and Claude 3.5. Provide complete, working, robust, production-ready code with explanations for: "${text}". Write complete 1000+ lines code where needed. Include full HTML, CSS, JavaScript, Python, or Java with markdown syntax highlighting.`
-          : `You are NexusAI, an advanced AI assistant powered by state-of-the-art intelligence like ChatGPT and Claude 3.5. Understand user requirement deeply, maintain conversation context, and provide a comprehensive, accurate, structured answer for: "${text}".\n\n${recentContextStr}Target Language: ${langKey === 'hi' ? 'Hindi (Devanagari)' : (langKey === 'hinglish' ? 'Hinglish (Conversational Hindi in English letters)' : 'English')}.`;
+        let aiPrompt = '';
+        if (isCodeRequest) {
+          aiPrompt = `You are GPT-3.6 Luna, an ultra-advanced AI code architect & software engineer. Provide complete, fully-functional, robust, production-ready code with explanations for: "${text}". Write complete 1000+ lines code where needed with zero truncation. Format with markdown syntax highlighting.`;
+        } else {
+          aiPrompt = `You are GPT-3.6 Luna, a hyper-intelligent, highly cognitive AI assistant created to rival ChatGPT Plus and Claude 3.5 Sonnet. Understand user requirement deeply, maintain conversation context, solve complex reasoning/math, and provide a comprehensive, accurate, structured answer for: "${text}".\n\n${recentContextStr}Target Language: ${langKey === 'hi' ? 'Hindi (Devanagari)' : (langKey === 'hinglish' ? 'Hinglish (Conversational Hindi in English letters)' : 'English')}.`;
+        }
 
-        const puterPromise = window.puter.ai.chat(aiPrompt, { model: 'gpt-4o-mini' });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8500));
+        const puterPromise = window.puter.ai.chat(aiPrompt, { model: modelTarget });
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 9000));
         const res = await Promise.race([puterPromise, timeoutPromise]);
         
         let reply = (typeof res === 'string') ? res : (res && res.message ? res.message.content : (res && res.text ? res.text : ''));
@@ -694,7 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return {
             text: reply.trim(),
             confidence: 0.99,
-            matchType: 'PUTER_AI_GPT4O',
+            matchType: selectedModel === 'luna' ? 'GPT_3_6_LUNA' : 'PUTER_AI_GPT4O',
             language: langKey
           };
         }
@@ -731,6 +758,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 10. REAL-TIME UNIVERSAL ENCYCLOPEDIC SEARCH (Wikipedia REST API - Covers Any World Concept)
     try {
+      const isFollowUpWord = /^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(text.trim());
+      if (!isFollowUpWord) {
       const isFollowUpWord = /^(in hindi|hindi|in english|english|in hinglish|hinglish|code|details|summary|short|more)$/i.test(cleanInput);
       if (!isFollowUpWord && !isFollowUp) {
         let searchTopic = text.replace(/^(what is|who is|explain|tell me about|define|meaning of|kya hai|ke baare me batao|what is an|what is a)\s+/i, '')

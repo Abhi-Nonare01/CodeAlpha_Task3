@@ -84,6 +84,7 @@
           <!-- AI Model Selector Pill -->
           <div class="model-selector-wrap">
             <select id="model-select" class="lang-select" title="AI Model Engine">
+              <option value="luna">🌙 GPT-3.6 Luna (Cognitive)</option>
               <option value="auto">⚡ Nexus-4o (Ultra Smart)</option>
               <option value="claude">🧠 Claude 3.5 (Deep Logic)</option>
               <option value="coder">💻 Code Architect (1000+ Lines)</option>
@@ -163,8 +164,17 @@
         <div id="scroll-anchor"></div>
       </div>
 
+      <!-- Floating Minimalist Input Bar with Magic Action Chips -->
       <!-- Floating Minimalist Input Bar -->
       <div class="input-container-wrap">
+        <!-- Magic AI Quick Action Chips -->
+        <div class="magic-chips-row">
+          <button class="magic-chip" data-action="code">💻 Full Code</button>
+          <button class="magic-chip" data-action="explain">🔍 Explain Simply</button>
+          <button class="magic-chip" data-action="debug">🐛 Debug & Fix</button>
+          <button class="magic-chip" data-action="hindi">🇮🇳 In Hindi</button>
+        </div>
+
         <div class="chat-input-card">
           <textarea 
             id="chat-textarea" 
