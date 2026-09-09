@@ -1069,19 +1069,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 8. Auto-growing Textarea & Enter to Send
   function updateSendBtnState() {
+    if (!chatTextarea || !btnSend) return;
     const hasText = chatTextarea.value.trim().length > 0;
     btnSend.disabled = !hasText;
   }
 
-  chatTextarea.addEventListener('input', () => {
+  function adjustTextareaHeight() {
+    if (!chatTextarea) return;
     chatTextarea.style.height = 'auto';
-    chatTextarea.style.height = Math.min(chatTextarea.scrollHeight, 180) + 'px';
+    const newHeight = Math.max(24, Math.min(chatTextarea.scrollHeight, 160));
+    chatTextarea.style.height = newHeight + 'px';
+    if (chatTextarea.scrollHeight > 160) {
+      chatTextarea.style.overflowY = 'auto';
+    } else {
+      chatTextarea.style.overflowY = 'hidden';
+    }
     updateSendBtnState();
-  });
+  }
 
+  chatTextarea.addEventListener('input', adjustTextareaHeight);
   chatTextarea.addEventListener('keyup', updateSendBtnState);
   chatTextarea.addEventListener('change', updateSendBtnState);
-  chatTextarea.addEventListener('paste', () => setTimeout(updateSendBtnState, 50));
+  chatTextarea.addEventListener('paste', () => setTimeout(adjustTextareaHeight, 30));
 
   chatTextarea.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1104,6 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     welcomeHero.style.display = 'flex';
     updateDynamicGreeting();
     chatTextarea.value = '';
+    chatTextarea.style.height = '24px';
     btnSend.disabled = true;
     renderHistorySidebar();
     scrollCanvasToBottom();
@@ -1121,61 +1131,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  btnThemeToggle.addEventListener('click', () => {
-    document.body.classList.toggle('theme-light');
-    const isLight = document.body.classList.contains('theme-light');
-    themeIcon.setAttribute('data-lucide', isLight ? 'moon' : 'sun');
-    lucide.createIcons();
-  });
-
-  btnTtsToggle.addEventListener('click', () => {
-    ttsEnabled = !ttsEnabled;
-    ttsIcon.setAttribute('data-lucide', ttsEnabled ? 'volume-x' : 'volume-2');
-    showToast(ttsEnabled ? 'Voice output enabled' : 'Voice output muted', 'volume-2');
-    lucide.createIcons();
-    if (!ttsEnabled) stopSpeaking();
-  });
-
-  btnSfxToggle.addEventListener('click', () => {
-    sfxEnabled = !sfxEnabled;
-    sfxIcon.setAttribute('data-lucide', sfxEnabled ? 'bell' : 'bell-off');
-    showToast(sfxEnabled ? 'Sound effects enabled' : 'Sound effects muted', 'bell');
-    lucide.createIcons();
-  });
-
-  btnExportMenu.addEventListener('click', () => {
-    const sess = getActiveSession();
-    if (!sess || !sess.messages || sess.messages.length === 0) {
-      showToast('No messages to export', 'alert-circle');
-      return;
-    }
-    let md = `# NexusAI Conversation Transcript\n**Date**: ${new Date().toLocaleString()}\n\n---\n\n`;
-    sess.messages.forEach(m => {
-      md += `### ${m.sender.toUpperCase()}\n${m.text}\n\n`;
+  if (btnThemeToggle) {
+    btnThemeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('theme-light');
+      const isLight = document.body.classList.contains('theme-light');
+      showToast(isLight ? 'Light theme enabled' : 'Dark theme enabled', isLight ? 'sun' : 'moon');
     });
-    const blob = new Blob([md], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `nexus_transcript_${Date.now()}.md`;
-    a.click();
-    showToast('Transcript exported as Markdown!', 'download');
-  });
+  }
+
+  if (btnTtsToggle) {
+    btnTtsToggle.addEventListener('click', () => {
+      ttsEnabled = !ttsEnabled;
+      btnTtsToggle.classList.toggle('active', ttsEnabled);
+      showToast(ttsEnabled ? 'Voice output enabled' : 'Voice output muted', 'volume-2');
+      if (!ttsEnabled) stopSpeaking();
+    });
+  }
+
+  if (btnSfxToggle) {
+    btnSfxToggle.addEventListener('click', () => {
+      sfxEnabled = !sfxEnabled;
+      btnSfxToggle.classList.toggle('active', sfxEnabled);
+      showToast(sfxEnabled ? 'Sound effects enabled' : 'Sound effects muted', 'bell');
+    });
+  }
+
+  if (btnExportMenu) {
+    btnExportMenu.addEventListener('click', () => {
+      const sess = getActiveSession();
+      if (!sess || !sess.messages || sess.messages.length === 0) {
+        showToast('No messages to export', 'alert-circle');
+        return;
+      }
+      let md = `# NexusAI Conversation Transcript\n**Date**: ${new Date().toLocaleString()}\n\n---\n\n`;
+      sess.messages.forEach(m => {
+        md += `### ${m.sender.toUpperCase()}\n${m.text}\n\n`;
+      });
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nexus_transcript_${Date.now()}.md`;
+      a.click();
+      showToast('Transcript exported as Markdown!', 'download');
+    });
+  }
 
   // 10. Knowledge Base Trainer Modal
   function openTrainerModal() {
-    trainerModal.classList.add('active');
+    if (trainerModal) trainerModal.classList.add('active');
   }
 
-  btnOpenTrainer.addEventListener('click', openTrainerModal);
+  if (btnOpenTrainer) btnOpenTrainer.addEventListener('click', openTrainerModal);
   if (btnOpenTrainerTop) btnOpenTrainerTop.addEventListener('click', openTrainerModal);
 
-  btnCloseModal.addEventListener('click', () => trainerModal.classList.remove('active'));
-  btnCancelTeach.addEventListener('click', () => trainerModal.classList.remove('active'));
+  if (btnCloseModal) btnCloseModal.addEventListener('click', () => trainerModal && trainerModal.classList.remove('active'));
+  if (btnCancelTeach) btnCancelTeach.addEventListener('click', () => trainerModal && trainerModal.classList.remove('active'));
 
-  trainerModal.addEventListener('click', (e) => {
-    if (e.target === trainerModal) trainerModal.classList.remove('active');
-  });
+  if (trainerModal) {
+    trainerModal.addEventListener('click', (e) => {
+      if (e.target === trainerModal) trainerModal.classList.remove('active');
+    });
+  }
 
   // Initialize
   renderHistorySidebar();

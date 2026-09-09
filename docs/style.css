@@ -669,12 +669,12 @@ body {
 
 .chat-input-card {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 10px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 28px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   box-shadow: var(--shadow-card);
   transition: border-color var(--transition-smooth), box-shadow var(--transition-smooth);
 }
@@ -694,9 +694,11 @@ body {
   color: #f1f3f4 !important;
   caret-color: #8ab4f8;
   resize: none;
+  height: 24px;
+  min-height: 24px;
   max-height: 160px;
-  line-height: 1.45;
-  padding: 4px 4px;
+  line-height: 24px;
+  padding: 2px 4px;
   overflow-y: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
