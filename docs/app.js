@@ -264,6 +264,66 @@ document.addEventListener('DOMContentLoaded', () => {
     bubble.appendChild(contentDiv);
     wrapper.appendChild(bubble);
 
+    // User Action Bar (Copy, Share, Edit - ChatGPT Style)
+    if (isUser) {
+      const userActionBar = document.createElement('div');
+      userActionBar.className = 'user-action-bar';
+
+      // 1. Copy Prompt
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'mini-action-btn';
+      copyBtn.title = 'Copy prompt';
+      copyBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+        </svg>
+      `;
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(text);
+        showToast('Prompt copied to clipboard!', 'check');
+      });
+      userActionBar.appendChild(copyBtn);
+
+      // 2. Share / Export Prompt
+      const shareBtn = document.createElement('button');
+      shareBtn.className = 'mini-action-btn';
+      shareBtn.title = 'Share prompt';
+      shareBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+          <polyline points="16 6 12 2 8 6"></polyline>
+          <line x1="12" y1="2" x2="12" y2="15"></line>
+        </svg>
+      `;
+      shareBtn.addEventListener('click', () => {
+        if (navigator.share) {
+          navigator.share({ title: 'AI Prompt', text: text }).catch(() => {});
+        } else {
+          navigator.clipboard.writeText(text);
+          showToast('Prompt copied to clipboard!', 'share');
+        }
+      });
+      userActionBar.appendChild(shareBtn);
+
+      // 3. Edit Prompt (ChatGPT style inline prompt editor)
+      const editBtn = document.createElement('button');
+      editBtn.className = 'mini-action-btn';
+      editBtn.title = 'Edit prompt';
+      editBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+          <path d="m15 5 4 4"></path>
+        </svg>
+      `;
+      editBtn.addEventListener('click', () => {
+        enableInlineEdit(row, wrapper, bubble, userActionBar, text);
+      });
+      userActionBar.appendChild(editBtn);
+
+      wrapper.appendChild(userActionBar);
+    }
+
     // Bot Action Bar
     if (!isUser) {
       const actionBar = document.createElement('div');
@@ -272,7 +332,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const copyBtn = document.createElement('button');
       copyBtn.className = 'mini-action-btn';
       copyBtn.title = 'Copy response';
-      copyBtn.innerHTML = '<i data-lucide="copy"></i>';
+      copyBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+        </svg>
+      `;
       copyBtn.addEventListener('click', () => {
         navigator.clipboard.writeText(text);
         showToast('Copied to clipboard!', 'check');
@@ -282,13 +347,25 @@ document.addEventListener('DOMContentLoaded', () => {
       const speakBtn = document.createElement('button');
       speakBtn.className = 'mini-action-btn speak-toggle-btn';
       speakBtn.title = 'Listen / Stop audio';
-      speakBtn.innerHTML = '<i data-lucide="volume-2"></i>';
+      speakBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+      `;
       speakBtn.addEventListener('click', () => toggleSpeech(text, speakBtn, lang));
       actionBar.appendChild(speakBtn);
 
       const likeBtn = document.createElement('button');
       likeBtn.className = 'mini-action-btn';
-      likeBtn.innerHTML = '<i data-lucide="thumbs-up"></i>';
+      likeBtn.title = 'Good response';
+      likeBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 10v12"></path>
+          <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path>
+        </svg>
+      `;
       likeBtn.addEventListener('click', () => showToast('Thanks for your feedback!', 'smile'));
       actionBar.appendChild(likeBtn);
 
@@ -328,6 +405,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
     lucide.createIcons();
     scrollCanvasToBottom();
+  }
+
+  // Inline Prompt Editing (ChatGPT Feature)
+  function enableInlineEdit(row, wrapper, bubble, userActionBar, originalText) {
+    // Avoid multiple edit boxes
+    if (wrapper.querySelector('.inline-edit-container')) return;
+
+    const editContainer = document.createElement('div');
+    editContainer.className = 'inline-edit-container';
+    editContainer.innerHTML = `
+      <textarea class="inline-edit-textarea">${escapeHtml(originalText)}</textarea>
+      <div class="inline-edit-actions">
+        <button class="inline-btn cancel-btn">Cancel</button>
+        <button class="inline-btn submit-btn">Save & Submit</button>
+      </div>
+    `;
+
+    bubble.style.display = 'none';
+    if (userActionBar) userActionBar.style.display = 'none';
+    wrapper.appendChild(editContainer);
+
+    const textarea = editContainer.querySelector('.inline-edit-textarea');
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+    textarea.style.height = (textarea.scrollHeight + 10) + 'px';
+
+    const cancelBtn = editContainer.querySelector('.cancel-btn');
+    const submitBtn = editContainer.querySelector('.submit-btn');
+
+    function closeEdit() {
+      editContainer.remove();
+      bubble.style.display = 'block';
+      if (userActionBar) userActionBar.style.display = 'flex';
+    }
+
+    cancelBtn.addEventListener('click', closeEdit);
+
+    function submitEditedPrompt() {
+      const newText = textarea.value.trim();
+      if (!newText) return;
+      closeEdit();
+      handleSendMessage(newText);
+    }
+
+    submitBtn.addEventListener('click', submitEditedPrompt);
+
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitEditedPrompt();
+      } else if (e.key === 'Escape') {
+        closeEdit();
+      }
+    });
   }
 
   function formatRichMarkdown(text) {

@@ -642,6 +642,84 @@ body {
   height: 14px;
 }
 
+/* User Action Bar (Copy, Share, Edit - ChatGPT Style) */
+.user-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+  opacity: 0.85;
+  transition: opacity var(--transition-smooth);
+}
+
+.chat-message-row.user:hover .user-action-bar {
+  opacity: 1;
+}
+
+.inline-edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  width: 100%;
+  max-width: 520px;
+  margin-top: 4px;
+}
+
+.inline-edit-textarea {
+  width: 100%;
+  background: #0f1011;
+  color: #f1f3f4;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 0.94rem;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.inline-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.inline-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition-smooth);
+}
+
+.inline-btn.cancel-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+.inline-btn.cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.inline-btn.submit-btn {
+  background: #1a73e8;
+  color: #ffffff;
+}
+
+.inline-btn.submit-btn:hover {
+  background: #1557b0;
+}
+
 .streaming-cursor {
   display: inline-block;
   width: 8px;
