@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const sfxIcon = document.getElementById('sfx-icon');
   const btnVoiceInput = document.getElementById('btn-voice-input');
   const langSelect = document.getElementById('lang-select');
+  const modelSelect = document.getElementById('model-select');
   const btnExportMenu = document.getElementById('btn-export-menu');
   const btnClearHistory = document.getElementById('btn-clear-history');
   const trainerModal = document.getElementById('trainer-modal');
@@ -743,8 +744,16 @@ document.addEventListener('DOMContentLoaded', () => {
   async function generateUniversalAnswer(rawText, langPreference = 'auto') {
     const text = rawText.trim();
     const lower = text.toLowerCase();
+    const cleanInput = lower.trim().replace(/[?!.,;]/g, '');
 
-    // 1. Math Evaluator & Step-by-Step Word Problem Solver
+    // 0. Determine Target Language immediately
+    const isPureHindi = /[\u0900-\u097F]/.test(text) || cleanInput.includes('in hindi') || cleanInput.includes('hindi me') || cleanInput === 'hindi' || cleanInput === 'in hindi';
+    const isHinglish = cleanInput.includes('in hinglish') || cleanInput.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye|aur)\b/i.test(lower);
+    const langKey = (langPreference && langPreference !== 'auto') 
+      ? (langPreference.startsWith('hi') ? 'hi' : (langPreference === 'hinglish' ? 'hinglish' : 'en')) 
+      : (isPureHindi ? 'hi' : (isHinglish ? 'hinglish' : 'en'));
+
+    // 1. Math Evaluator (Direct Arithmetic Expressions)
     if (/^(?:calc|calculate|what is|solve)?\s*([0-9\.\+\-\*\/\^\(\)\s%sqrt]+)$/i.test(lower) || lower.startsWith('calc ')) {
       try {
         let expr = lower.replace(/^(?:calc|calculate|what is|solve)\s*/i, '')
@@ -812,7 +821,26 @@ document.addEventListener('DOMContentLoaded', () => {
       return { text: `You haven't told me your name yet! Say *"My name is [your name]"*.`, confidence: 0.9, matchType: 'RULE_MEMORY', language: 'en' };
     }
 
-    // 0. Extract Session History & Previous Turn Context (ChatGPT/Claude Grade Multi-Turn Continuity)
+    // 4. Check if user is asking for code generation
+    const isCodeRequest = /\b(write|create|code|program|script|build|develop|generate|implement|design|example|calculator|game|solve|algorithm|function|class)\b/i.test(lower);
+    const isSpecificStaticQuery = (cleanInput === 'what is python' || cleanInput === 'what is java' || cleanInput === 'what is javascript' || cleanInput === 'what is ai' || cleanInput === 'what is nlp' || cleanInput === 'what is oop' || cleanInput === 'what is sql' || cleanInput === 'codealfa' || cleanInput === 'what is operating system' || cleanInput === 'what is os' || cleanInput === 'java' || cleanInput === 'python' || cleanInput === 'javascript' || cleanInput === 'ai' || cleanInput === 'nlp' || cleanInput === 'oop' || cleanInput === 'os');
+
+    // 5. Instant Static Knowledge Graph matching
+    if (isSpecificStaticQuery && !isCodeRequest) {
+      for (const [topic, content] of Object.entries(KNOWLEDGE_GRAPH)) {
+        if (cleanInput.includes(topic) || (topic === 'os' && (cleanInput.includes('operating system') || cleanInput.includes('what is os')))) {
+          lastTopic = topic;
+          return {
+            text: content[langKey] || content['en'],
+            confidence: 0.99,
+            matchType: 'KNOWLEDGE_GRAPH',
+            language: langKey
+          };
+        }
+      }
+    }
+
+    // 6. Extract Session History & Previous Turn Context (ChatGPT/Claude Grade Multi-Turn Continuity)
     const sess = getActiveSession();
     const history = (sess && sess.messages) ? sess.messages : [];
     const botMessages = history.filter(m => m.sender === 'bot');
@@ -820,29 +848,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastBotMsg = botMessages.length > 0 ? botMessages[botMessages.length - 1].text : '';
     const previousUserPrompt = userMessages.length > 1 ? userMessages[userMessages.length - 2].text : '';
 
-    const cleanInput = lower.trim().replace(/[?!.,;]/g, '');
-
-    // 0.1 Comprehensive Follow-up Intent Detectors
     const isHinglishFollowUp = /^(?:(?:please\s+)?(?:explain|tell|batao|samjhao|karo|likho)\s+(?:this\s+|it\s+)?(?:in\s+)?hinglish|in\s+hinglish|hinglish\s+me(?: batao| samjhao)?|translate\s+(?:in|to)?\s*hinglish|hinglish\s+version|hinglish)$/i.test(cleanInput) || cleanInput.includes('in hinglish') || cleanInput.includes('hinglish me');
-
     const isHindiFollowUp = /^(?:(?:please\s+)?(?:explain|tell|batao|samjhao|karo|likho)\s+(?:this\s+|it\s+)?(?:in\s+)?hindi|in\s+hindi|hindi\s+me(?: batao| samjhao)?|translate\s+(?:in|to)?\s*hindi|hindi\s+version|hindi\s+translation|hindi)$/i.test(cleanInput) || cleanInput === 'in hindi' || cleanInput === 'hindi me' || cleanInput === 'explain in hindi';
-
     const isEnglishFollowUp = /^(?:(?:please\s+)?(?:explain|tell)\s+(?:this\s+|it\s+)?(?:in\s+)?english|in\s+english|english\s+me|translate\s+(?:in|to)?\s*english|english\s+version|english)$/i.test(cleanInput) || cleanInput === 'in english' || cleanInput === 'english me' || cleanInput === 'explain in english';
-
     const isExplainMoreFollowUp = /^(?:explain\s+more|aur\s+batao|more\s+details|deep\s+explanation|tell\s+me\s+more|elaborate|details|aur\s+samjhao|aur\s+bhi\s+batao)$/i.test(cleanInput);
-
     const isCodeFollowUp = /^(?:code|give\s+code|write\s+code|code\s+please|provide\s+code|code\s+bhi\s+do|show\s+code|code\s+dikhao|pura\s+code\s+do)$/i.test(cleanInput);
-
     const isShortSummary = /^(?:summarize|summary|short\s+me|short\s+summary|in\s+short|brief|in\s+brief|chota\s+karo)$/i.test(cleanInput);
 
     const isFollowUp = isHinglishFollowUp || isHindiFollowUp || isEnglishFollowUp || isExplainMoreFollowUp || isCodeFollowUp || isShortSummary;
 
-    // 4. Determine Language Target
-    const isPureHindi = /[\u0900-\u097F]/.test(text) || cleanInput.includes('in hindi') || cleanInput.includes('hindi me') || isHindiFollowUp;
-    const isHinglish = cleanInput.includes('in hinglish') || cleanInput.includes('hinglish me') || /\b(kya|hai|kaise|karo|batao|shukriya|namaste|samjhao|chahiye)\b/i.test(lower) || isHinglishFollowUp;
-    const langKey = isPureHindi ? 'hi' : (isHinglish ? 'hinglish' : 'en');
-
-    // 5. Handle Multi-turn Follow-up Context (Translate / Re-explain previous topic)
+    // 7. Handle Multi-turn Follow-up Context (Translate / Re-explain previous topic)
     if (isFollowUp && (lastBotMsg || previousUserPrompt)) {
       const targetLang = isHindiFollowUp ? 'hi' : (isHinglishFollowUp ? 'hinglish' : 'en');
 
@@ -913,29 +928,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 6. Check if user is asking for code generation
-    const isCodeRequest = /\b(write|create|code|program|script|build|develop|generate|implement|design|example|calculator|game|solve|algorithm|function|class)\b/i.test(lower);
-    const isSpecificStaticQuery = (lower === 'what is python' || lower === 'what is java' || lower === 'what is javascript' || lower === 'what is ai' || lower === 'what is nlp' || lower === 'what is oop' || lower === 'what is sql' || lower === 'codealfa' || lower === 'what is operating system' || lower === 'what is os');
-
-    // 7. Static Knowledge Graph matching
-    if (isSpecificStaticQuery && !isCodeRequest) {
-      for (const [topic, content] of Object.entries(KNOWLEDGE_GRAPH)) {
-        if (lower.includes(topic) || (topic === 'os' && (lower.includes('operating system') || lower.includes('what is os')))) {
-          lastTopic = topic;
-          return {
-            text: content[langKey] || content['en'],
-            confidence: 0.98,
-            matchType: 'KNOWLEDGE_GRAPH',
-            language: langKey
-          };
-        }
-      }
-    }
-
     // 8. REAL-TIME AI ENGINE VIA PUTER.JS (GPT-3.6 Luna, GPT-4o-mini & Claude API)
     if (window.puter && window.puter.ai) {
       try {
-        const selectedModel = modelSelect ? modelSelect.value : 'luna';
+        const selectedModel = (modelSelect && modelSelect.value) ? modelSelect.value : 'luna';
         const modelTarget = (selectedModel === 'claude') ? 'claude-3-5-sonnet' : 'gpt-4o-mini';
 
         // Build recent conversation transcript for full contextual awareness
@@ -947,7 +943,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let aiPrompt = '';
         if (isCodeRequest) {
-          aiPrompt = `You are GPT-3.6 Luna, a top-tier AI software engineer. Provide complete, clean, step-by-step production-ready code with explanations for: "${text}". Write complete 1000+ lines code where needed with zero truncation. Format with markdown syntax highlighting.`;
+          aiPrompt = `You are GPT-3.6 Luna, a top-tier AI software engineer. Provide complete, clean, step-by-step production-ready code with explanations for: "${text}". Write complete code where needed with zero truncation. Format with markdown syntax highlighting.`;
         } else {
           aiPrompt = `You are GPT-3.6 Luna, a hyper-intelligent, cognitive AI assistant matching ChatGPT Plus and Claude 3.5 Sonnet.
 CRITICAL INSTRUCTIONS:
@@ -958,7 +954,7 @@ CRITICAL INSTRUCTIONS:
         }
 
         const puterPromise = window.puter.ai.chat(aiPrompt, { model: modelTarget });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 25000));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 12000));
         const res = await Promise.race([puterPromise, timeoutPromise]);
         
         let reply = (typeof res === 'string') ? res : (res && res.message ? res.message.content : (res && res.text ? res.text : ''));
@@ -1100,35 +1096,59 @@ CRITICAL INSTRUCTIONS:
 
     let data = null;
 
-    // 1. Try local Java API backend first if available
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
-      });
-      if (res.ok) {
-        const localData = await res.json();
-        // If backend returned high confidence answer
-        if (localData && localData.confidence >= 0.4) {
-          data = localData;
+      // 1. Try local Java API backend first if available (with 3s abort)
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const localData = await res.json();
+          if (localData && localData.confidence >= 0.4) {
+            data = localData;
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
 
-    // 2. If backend not running or low confidence, use Universal Generative AI Engine
-    if (!data) {
-      data = await generateUniversalAnswer(text, langSelect.value);
+      // 2. If backend not running or low confidence, use Universal Generative AI Engine
+      if (!data) {
+        data = await generateUniversalAnswer(text, langSelect ? langSelect.value : 'auto');
+      }
+    } catch (err) {
+      console.error("AI Generation error:", err);
+      data = {
+        text: `### 🤖 **NexusAI Assistant**\n\nI have analyzed your question: **"${text}"**.\n\nPlease ask for code, mathematical step-by-step proof, or conceptual explanations!`,
+        confidence: 0.85,
+        matchType: 'RECOVERY_FALLBACK',
+        language: 'en'
+      };
+    } finally {
+      if (typingBubble && typingBubble.parentNode) {
+        typingBubble.remove();
+      }
     }
 
-    typingBubble.remove();
+    if (!data || !data.text) {
+      data = {
+        text: `### 🤖 **NexusAI Assistant**\n\nHere is the response for **"${text}"**:\n\nFeel free to ask for step-by-step reasoning, calculations, or complete code!`,
+        confidence: 0.9,
+        matchType: 'SAFE_FALLBACK',
+        language: 'en'
+      };
+    }
 
     sess.messages.push({
       sender: 'bot',
       text: data.text,
-      confidence: data.confidence,
-      matchType: data.matchType,
-      lang: data.language
+      confidence: data.confidence || 0.95,
+      matchType: data.matchType || 'AI_RESPONSE',
+      lang: data.language || 'en'
     });
     saveSessions();
     playSound('receive');
