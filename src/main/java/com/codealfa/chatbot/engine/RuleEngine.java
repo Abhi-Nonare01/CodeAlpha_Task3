@@ -73,9 +73,9 @@ public class RuleEngine {
             return Optional.of("Namaste! Aap mujhse Java, AI, NLP, CodeAlfa ya kisi bhi topic par Hinglish me pooch sakte hain. Kya janna chahenge?");
         }
 
-        if (lowerTrimmed.equals("in english") || lowerTrimmed.equals("english me") || lowerTrimmed.equals("english please")) {
+        if (lowerTrimmed.equals("in english") || lowerTrimmed.equals("english me") || lowerTrimmed.equals("english please") || lowerTrimmed.equals("english")) {
             String lastTag = context.getLastIntentTag();
-            if (lastTag != null && !lastTag.equals("fallback")) {
+            if (lastTag != null && !lastTag.equals("fallback") && !lastTag.equals("greeting") && !lastTag.equals("rule_matched") && !lastTag.equals("empty_input")) {
                 Optional<Intent> intentOpt = kb.getIntentByTag(lastTag);
                 if (intentOpt.isPresent() && !intentOpt.get().getResponses().isEmpty()) {
                     return Optional.of(intentOpt.get().getResponses().get(0));

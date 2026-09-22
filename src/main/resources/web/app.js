@@ -848,53 +848,58 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastBotMsg = botMessages.length > 0 ? botMessages[botMessages.length - 1].text : '';
     const previousUserPrompt = userMessages.length > 1 ? userMessages[userMessages.length - 2].text : '';
 
-    const isHinglishFollowUp = /^(?:(?:please\s+)?(?:explain|tell|batao|samjhao|karo|likho)\s+(?:this\s+|it\s+)?(?:in\s+)?hinglish|in\s+hinglish|hinglish\s+me(?: batao| samjhao)?|translate\s+(?:in|to)?\s*hinglish|hinglish\s+version|hinglish)$/i.test(cleanInput) || cleanInput.includes('in hinglish') || cleanInput.includes('hinglish me');
-    const isHindiFollowUp = /^(?:(?:please\s+)?(?:explain|tell|batao|samjhao|karo|likho)\s+(?:this\s+|it\s+)?(?:in\s+)?hindi|in\s+hindi|hindi\s+me(?: batao| samjhao)?|translate\s+(?:in|to)?\s*hindi|hindi\s+version|hindi\s+translation|hindi)$/i.test(cleanInput) || cleanInput === 'in hindi' || cleanInput === 'hindi me' || cleanInput === 'explain in hindi';
-    const isEnglishFollowUp = /^(?:(?:please\s+)?(?:explain|tell)\s+(?:this\s+|it\s+)?(?:in\s+)?english|in\s+english|english\s+me|translate\s+(?:in|to)?\s*english|english\s+version|english)$/i.test(cleanInput) || cleanInput === 'in english' || cleanInput === 'english me' || cleanInput === 'explain in english';
+    const isHinglishFollowUp = /^(?:(?:please\s+)?(?:explain|tell|batao|samjhao|karo|likho|translate|convert)\s+(?:this\s+|it\s+)?(?:in\s+)?hinglish|in\s+hinglish|hinglish\s+me(?: batao| samjhao)?|translate\s+(?:in|to)?\s*hinglish|hinglish\s+version|hinglish)$/i.test(cleanInput) || cleanInput === 'in hinglish' || cleanInput === 'hinglish me' || cleanInput === 'hinglish';
+    const isHindiFollowUp = /^(?:(?:please\s+)?(?:explain|tell|batao|samjhao|karo|likho|translate|convert)\s+(?:this\s+|it\s+)?(?:in\s+)?hindi|in\s+hindi|hindi\s+me(?: batao| samjhao)?|translate\s+(?:in|to)?\s*hindi|hindi\s+version|hindi\s+translation|hindi)$/i.test(cleanInput) || cleanInput === 'in hindi' || cleanInput === 'hindi me' || cleanInput === 'hindi' || cleanInput === 'explain in hindi';
+    const isEnglishFollowUp = /^(?:(?:please\s+)?(?:explain|tell|translate|convert)\s+(?:this\s+|it\s+)?(?:in\s+)?english|in\s+english|english\s+me|translate\s+(?:in|to)?\s*english|english\s+version|english\s+translation|english)$/i.test(cleanInput) || cleanInput === 'in english' || cleanInput === 'english me' || cleanInput === 'english' || cleanInput === 'explain in english';
     const isExplainMoreFollowUp = /^(?:explain\s+more|aur\s+batao|more\s+details|deep\s+explanation|tell\s+me\s+more|elaborate|details|aur\s+samjhao|aur\s+bhi\s+batao)$/i.test(cleanInput);
     const isCodeFollowUp = /^(?:code|give\s+code|write\s+code|code\s+please|provide\s+code|code\s+bhi\s+do|show\s+code|code\s+dikhao|pura\s+code\s+do)$/i.test(cleanInput);
     const isShortSummary = /^(?:summarize|summary|short\s+me|short\s+summary|in\s+short|brief|in\s+brief|chota\s+karo)$/i.test(cleanInput);
 
     const isFollowUp = isHinglishFollowUp || isHindiFollowUp || isEnglishFollowUp || isExplainMoreFollowUp || isCodeFollowUp || isShortSummary;
 
-    // 7. Handle Multi-turn Follow-up Context (Translate / Re-explain previous topic)
+    // 7. Handle Multi-turn Follow-up Context (Translate / Re-explain previous exact topic)
     if (isFollowUp && (lastBotMsg || previousUserPrompt)) {
-      const targetLang = isHindiFollowUp ? 'hi' : (isHinglishFollowUp ? 'hinglish' : 'en');
-
-      // Check if last bot message belongs to a built-in knowledge topic
-      const combinedHistoryText = (lastTopic + ' ' + lastBotMsg + ' ' + previousUserPrompt).toLowerCase();
-      for (const [topicKey, topicData] of Object.entries(KNOWLEDGE_GRAPH)) {
-        if (combinedHistoryText.includes(topicKey) || (topicKey === 'os' && combinedHistoryText.includes('operating system'))) {
-          lastTopic = topicKey;
-          if (isCodeFollowUp) break;
-          return {
-            text: topicData[targetLang] || topicData['en'],
-            confidence: 1.0,
-            matchType: 'CONTEXT_FOLLOWUP_KNOWLEDGE',
-            language: targetLang
-          };
-        }
-      }
+      const targetLang = isHindiFollowUp ? 'hi' : (isHinglishFollowUp ? 'hinglish' : (isEnglishFollowUp ? 'en' : langKey));
 
       // Execute Real-Time GPT-4o-mini / Claude for contextual continuation
       if (window.puter && window.puter.ai) {
         try {
+          const selectedModel = (modelSelect && modelSelect.value) ? modelSelect.value : 'luna';
+          const modelTarget = (selectedModel === 'claude') ? 'claude-3-5-sonnet' : 'gpt-4o-mini';
+
           let promptInstruction = '';
           if (isHinglishFollowUp) {
-            promptInstruction = `The user previously asked about a topic and now said "${text}". Explain the ENTIRE previous response/topic in clear, step-by-step conversational Hinglish (Hindi written in English alphabets / Roman Hindi). Do NOT define what Hinglish means. Directly explain the subject in depth with clean markdown, bullet points, and code:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
+            promptInstruction = `The user previously asked a question and now requested: "${text}".
+Explain the exact SAME previous topic in clear, step-by-step conversational Hinglish (Hindi written in English alphabets / Roman Hindi).
+Ensure it is structured, simple, and intuitive with bullet points. Do NOT define what Hinglish means.
+[PREVIOUS USER PROMPT]: ${previousUserPrompt || 'N/A'}
+[PREVIOUS ASSISTANT RESPONSE]:\n${lastBotMsg}`;
           } else if (isHindiFollowUp) {
-            promptInstruction = `The user previously asked about a topic and now said "${text}". Explain the ENTIRE previous response/topic in fluent, natural Hindi (हिंदी - Devanagari script). Do NOT define what Hindi means. Directly explain the subject in depth with clear step-by-step bullet points and markdown:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
+            promptInstruction = `The user previously asked a question and now requested: "${text}".
+Explain the exact SAME previous topic completely in fluent, natural Hindi (हिंदी - Devanagari script).
+Provide a clean step-by-step explanation with simple examples and bullet points.
+[PREVIOUS USER PROMPT]: ${previousUserPrompt || 'N/A'}
+[PREVIOUS ASSISTANT RESPONSE]:\n${lastBotMsg}`;
           } else if (isEnglishFollowUp) {
-            promptInstruction = `Re-explain the entire previous response/topic in simple, clear, step-by-step English with full details:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
+            promptInstruction = `The user asked to translate or re-explain the exact previous response/topic in English: "${text}".
+Explain the exact SAME subject in clear, step-by-step English with simple explanations, key points, and structure.
+[PREVIOUS USER PROMPT]: ${previousUserPrompt || 'N/A'}
+[PREVIOUS ASSISTANT RESPONSE]:\n${lastBotMsg}`;
           } else if (isCodeFollowUp) {
-            promptInstruction = `Write complete, production-ready, working code with explanations for the previous topic:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
+            promptInstruction = `Write complete, production-ready, working code with step-by-step explanation for the previous topic:
+[PREVIOUS USER PROMPT]: ${previousUserPrompt || 'N/A'}
+[PREVIOUS ASSISTANT RESPONSE]:\n${lastBotMsg}`;
           } else if (isShortSummary) {
-            promptInstruction = `Summarize the previous response into 3-4 concise, high-impact bullet points:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
+            promptInstruction = `Summarize the previous response into 3-4 concise, high-impact bullet points:
+[PREVIOUS USER PROMPT]: ${previousUserPrompt || 'N/A'}
+[PREVIOUS ASSISTANT RESPONSE]:\n${lastBotMsg}`;
           } else {
-            promptInstruction = `Provide much deeper technical details, examples, and edge-cases for the previous topic:\n\n[PREVIOUS TOPIC/RESPONSE]:\n${lastBotMsg || previousUserPrompt}`;
+            promptInstruction = `Provide much deeper technical details, examples, and step-by-step elaboration for the previous topic:
+[PREVIOUS USER PROMPT]: ${previousUserPrompt || 'N/A'}
+[PREVIOUS ASSISTANT RESPONSE]:\n${lastBotMsg}`;
           }
 
-          const res = await window.puter.ai.chat(promptInstruction, { model: 'gpt-4o-mini' });
+          const res = await window.puter.ai.chat(promptInstruction, { model: modelTarget });
           let reply = (typeof res === 'string') ? res : (res && res.message ? res.message.content : '');
           if (reply && reply.trim().length > 10) {
             return {
@@ -907,23 +912,47 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {}
       }
 
-      // Context Fallback Translation if network fails
+      // Check if previous user query explicitly matched a built-in knowledge topic
+      if (previousUserPrompt) {
+        const cleanPrev = previousUserPrompt.toLowerCase().trim().replace(/[?!.,;]/g, '');
+        for (const [topicKey, topicData] of Object.entries(KNOWLEDGE_GRAPH)) {
+          const regex = new RegExp(`\\b${topicKey}\\b`, 'i');
+          if (regex.test(cleanPrev) || (topicKey === 'os' && (cleanPrev.includes('operating system') || cleanPrev === 'os'))) {
+            if (isCodeFollowUp) break;
+            return {
+              text: topicData[targetLang] || topicData['en'],
+              confidence: 0.98,
+              matchType: 'CONTEXT_FOLLOWUP_KNOWLEDGE',
+              language: targetLang
+            };
+          }
+        }
+      }
+
+      // Context Fallback Translation if network is offline
       const prevTitleMatch = lastBotMsg.match(/###\s*([^\n\r]+)/);
-      const prevTitle = prevTitleMatch ? prevTitleMatch[1].replace(/[*#]/g, '').trim() : (previousUserPrompt || 'यह विषय');
+      const prevTitle = prevTitleMatch ? prevTitleMatch[1].replace(/[*#]/g, '').trim() : (previousUserPrompt || 'This Topic');
 
       if (isHinglishFollowUp) {
         return {
-          text: `### 🇮🇳 **${prevTitle}** (Hinglish Explanation)\n\nYeh **${prevTitle}** ke baare me step-by-step explanation hai:\n\n- 🔍 **Core Concept**: Yeh modern technology aur software engineering ka ek important component hai.\n- ⚙️ **Main Purpose**: Iska use system ko fast, modular, aur scalable banane ke liye kiya jata hai.\n- 🚀 **Real-World Implementation**: Enterprise applications aur microservices me widely implement hota hai.\n\nAap iska complete code ya deep architecture bhi pooch sakte hain!`,
+          text: `### 🇮🇳 **${prevTitle}** (Hinglish Explanation)\n\nYeh **${prevTitle}** ke baare me step-by-step explanation hai:\n\n- 🔍 **Core Concept**: Yeh subject computer science aur software technology ka ek important foundation hai.\n- ⚙️ **Main Purpose**: Iska primary goal systems ko efficient, scalable aur reliable banana hai.\n- 🚀 **Real-World Application**: Modern applications aur enterprise systems me widely use hota hai.\n\nAap iska live code example ya specific mathematical formula bhi pooch sakte hain!`,
           confidence: 0.98,
           matchType: 'CONTEXT_TRANSLATION_HINGLISH',
           language: 'hinglish'
         };
       } else if (isHindiFollowUp) {
         return {
-          text: `### 🇮🇳 **${prevTitle}** (हिंदी में संपूर्ण विवरण)\n\nयहाँ **${prevTitle}** की चरण-दर-चरण व्याख्या है:\n\n- 🔍 **अवधारणा और परिभाषा**: यह आधुनिक कंप्यूटर विज्ञान, प्रोग्रामिंग और सॉफ्टवेयर सिस्टम का एक अत्यंत महत्वपूर्ण आधार है।\n- ⚙️ **मुख्य उद्देश्य**: सिस्टम को सुचारू, सुरक्षित और कुशल बनाना ताकि सभी कार्य बिना किसी रुकावट के पूरे हो सकें।\n- 💡 **व्यावहारिक उपयोग**: सॉफ्टवेयर इंजीनियरिंग, डेटा प्रोसेसिंग और रियल-वर्ल्ड एप्लीकेशन डेवलपमेंट में व्यापक रूप से इस्तेमाल होता है।\n\nयदि आप इस पर कोई विशेष कोड उदाहरण या प्रोग्राम देखना चाहते हैं, तो कृपया बताएं!`,
+          text: `### 🇮🇳 **${prevTitle}** (हिंदी में संपूर्ण विवरण)\n\nयहाँ **${prevTitle}** की सरल एवं स्पष्ट व्याख्या है:\n\n- 🔍 **मूल अवधारणा**: यह आधुनिक कंप्यूटर विज्ञान और सॉफ्टवेयर विकास का एक अत्यंत महत्वपूर्ण आधार है।\n- ⚙️ **प्रमुख उद्देश्य**: कार्यों को सुचारू, सुरक्षित और तीव्र गति से संचालित करना।\n- 💡 **व्यावहारिक उपयोग**: सॉफ्टवेयर इंजीनियरिंग, डेटा प्रोसेसिंग और औद्योगिक प्रणालियों में इसका विस्तृत उपयोग होता है।\n\nआप इस विषय पर कोई प्रोग्राम, कोड या विस्तृत उदाहरण भी पूछ सकते हैं!`,
           confidence: 0.98,
           matchType: 'CONTEXT_TRANSLATION_HINDI',
           language: 'hi'
+        };
+      } else {
+        return {
+          text: `### 🌐 **${prevTitle}** (English Explanation)\n\nHere is the step-by-step breakdown of **${prevTitle}**:\n\n- 🔍 **Core Principle**: A fundamental building block in modern technology and computer science.\n- ⚙️ **Key Objective**: Designed to ensure scalability, robust performance, and seamless system operations.\n- 🚀 **Practical Utility**: Extensively applied across modern web, cloud, and distributed architectures.\n\nFeel free to ask for specific code implementations, mathematical formulas, or deep architectures!`,
+          confidence: 0.98,
+          matchType: 'CONTEXT_TRANSLATION_ENGLISH',
+          language: 'en'
         };
       }
     }
@@ -937,8 +966,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Build recent conversation transcript for full contextual awareness
         let recentContextStr = '';
         if (history.length > 0) {
-          const recentHistory = history.slice(-4);
-          recentContextStr = 'Recent Conversation History:\n' + recentHistory.map(m => `[${m.sender === 'user' ? 'User' : 'Assistant'}]: ${m.text.substring(0, 300)}`).join('\n') + '\n\n';
+          const recentHistory = history.slice(-6);
+          recentContextStr = 'Recent Conversation History:\n' + recentHistory.map(m => `[${m.sender === 'user' ? 'User' : 'Assistant'}]: ${m.text.substring(0, 500)}`).join('\n') + '\n\n';
         }
 
         let aiPrompt = '';
@@ -1097,26 +1126,32 @@ CRITICAL INSTRUCTIONS:
     let data = null;
 
     try {
-      // 1. Try local Java API backend first if available (with 3s abort)
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text }),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (res.ok) {
-          const localData = await res.json();
-          if (localData && localData.confidence >= 0.4) {
-            data = localData;
-          }
-        }
-      } catch (e) {}
+      // 1. Determine if query is a follow-up, language switch, or translation
+      const cleanLower = text.toLowerCase().trim().replace(/[?!.,;]/g, '');
+      const isQuickFollowUp = /^(?:(?:please\s+)?(?:explain|tell|batao|samjhao|karo|likho|translate|convert)\s+(?:this\s+|it\s+)?(?:in\s+)?(?:english|hindi|hinglish)|in\s+(?:english|hindi|hinglish)|(?:english|hindi|hinglish)\s+me(?: batao| samjhao)?|translate\s+(?:in|to)?\s*(?:english|hindi|hinglish)|(?:english|hindi|hinglish)\s+version|(?:english|hindi|hinglish)|explain\s+more|aur\s+batao|more\s+details|deep\s+explanation|tell\s+me\s+more|elaborate|details|aur\s+samjhao|aur\s+bhi\s+batao|code|give\s+code|write\s+code|code\s+please|provide\s+code|code\s+bhi\s+do|show\s+code|code\s+dikhao|pura\s+code\s+do|summarize|summary|short\s+me|short\s+summary|in\s+short|brief|in\s+brief|chota\s+karo)$/i.test(cleanLower);
 
-      // 2. If backend not running or low confidence, use Universal Generative AI Engine
+      // Try local Java API backend first only for direct non-follow-up queries
+      if (!isQuickFollowUp) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const localData = await res.json();
+            if (localData && localData.confidence >= 0.7 && localData.matchType !== 'FALLBACK' && localData.matchType !== 'RULE_FALLBACK') {
+              data = localData;
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 2. If backend not running, query is follow-up, or low confidence, use Universal Generative AI Engine
       if (!data) {
         data = await generateUniversalAnswer(text, langSelect ? langSelect.value : 'auto');
       }
